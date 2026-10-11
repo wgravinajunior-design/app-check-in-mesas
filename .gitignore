@@ -32,6 +32,7 @@ migrate_working_dir/
 .pub/
 /build/
 /coverage/
+/build_apk/
 *.db
 *.db-journal
 windows/flutter/ephemeral/
