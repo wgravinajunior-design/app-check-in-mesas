@@ -1,0 +1,95 @@
+name: Build e Release Automática de APK
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      version_tag:
+        description: 'Tag da Versão (ex.: v1.0.1)'
+        required: true
+        default: 'v1.0.1'
+      release_title:
+        description: 'Título da Release'
+        required: true
+        default: 'Atualização do Sistema de Permanência'
+      release_notes:
+        description: 'Notas de Melhoria (O que há de novo)'
+        required: false
+        default: 'Melhorias de rotatividade, alertas dinâmicos e correções gerais.'
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-release:
+    name: Compilar APK e Publicar Release
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout do Código
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Configurar Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Configurar Flutter SDK
+        uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+          cache: true
+
+      - name: Instalar Dependências
+        run: flutter pub get
+
+      - name: Executar Testes Automatizados
+        run: flutter test
+
+      - name: Compilar APK em Release
+        run: flutter build apk --release
+
+      - name: Determinar Tag e Notas de Melhoria
+        id: release_info
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            TAG="${{ github.event.inputs.version_tag }}"
+            TITLE="${{ github.event.inputs.release_title }}"
+            NOTES="${{ github.event.inputs.release_notes }}"
+          else
+            TAG="${{ github.ref_name }}"
+            TITLE="Lançamento $TAG"
+            # Extrai os commits desde a tag anterior para listar o que teve de melhoria
+            PREV_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
+            if [ -n "$PREV_TAG" ]; then
+              NOTES=$(git log ${PREV_TAG}..HEAD --pretty=format:"- %s (%h)")
+            else
+              NOTES=$(git log -n 10 --pretty=format:"- %s (%h)")
+            fi
+          fi
+          echo "tag=$TAG" >> $GITHUB_OUTPUT
+          echo "title=$TITLE" >> $GITHUB_OUTPUT
+          echo "notes<<EOF" >> $GITHUB_OUTPUT
+          echo "### 🚀 O que teve de melhoria nesta versão:" >> $GITHUB_OUTPUT
+          echo "$NOTES" >> $GITHUB_OUTPUT
+          echo "" >> $GITHUB_OUTPUT
+          echo "### 📦 Download do Aplicativo:" >> $GITHUB_OUTPUT
+          echo "Baixe o arquivo \`app-release.apk\` anexo abaixo para instalar ou atualizar diretamente no seu smartphone ou tablet Android." >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Criar GitHub Release e Anexar APK
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.release_info.outputs.tag }}
+          name: ${{ steps.release_info.outputs.title }}
+          body: ${{ steps.release_info.outputs.notes }}
+          draft: false
+          prerelease: false
+          files: build/app/outputs/flutter-apk/app-release.apk
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
