@@ -66,33 +66,45 @@ class _MesaGridScreenState extends State<MesaGridScreen> {
       },
       child: Scaffold(
         appBar: AppBar(
+          titleSpacing: 14,
           title: const Row(
+            mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(Icons.restaurant_rounded, size: 22),
+              Icon(Icons.restaurant_rounded, size: 20),
               SizedBox(width: 8),
-              Text('Controle de Permanência'),
+              Flexible(
+                child: Text(
+                  'Gestão de Mesas',
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 17,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
             ],
           ),
           actions: [
             IconButton(
               tooltip: 'Verificar Atualização (APK)',
-              icon: const Icon(Icons.system_update_alt_rounded),
+              icon: const Icon(Icons.system_update_alt_rounded, size: 22),
               onPressed: () => _checarAtualizacao(silencioso: false),
             ),
             IconButton(
-              tooltip: 'Configurações e Auditoria',
-              icon: const Icon(Icons.settings_outlined),
+              tooltip: 'Configurações e Conexão Firebird',
+              icon: const Icon(Icons.settings_outlined, size: 22),
               onPressed: () => _abrirConfiguracoes(context),
             ),
             IconButton(
               tooltip: 'Recarregar',
-              icon: const Icon(Icons.refresh_rounded),
+              icon: const Icon(Icons.refresh_rounded, size: 22),
               onPressed: () {
                 final configState = context.read<ConfigCubit>().state;
                 final config = configState is ConfigLoaded ? configState.config : null;
                 context.read<MesaCubit>().carregarMesas(config: config);
               },
             ),
+            const SizedBox(width: 4),
           ],
         ),
         body: BlocConsumer<MesaCubit, MesaState>(
@@ -158,7 +170,6 @@ class _MesaGridScreenState extends State<MesaGridScreen> {
                           )
                         : LayoutBuilder(
                             builder: (context, constraints) {
-                              // Cálculo responsivo com colunas mais densas para cards compactos
                               int crossAxisCount;
                               if (constraints.maxWidth > 1400) {
                                 crossAxisCount = 8;
@@ -294,6 +305,9 @@ class _MesaGridScreenState extends State<MesaGridScreen> {
               behavior: SnackBarBehavior.floating,
             ),
           );
+        },
+        onTestarConexao: (config) {
+          return context.read<MesaCubit>().testarConexaoFirebird(config);
         },
         onImportarMesasFirebird: (config) async {
           final total = await context.read<MesaCubit>().importarMesasDoFirebird(config);

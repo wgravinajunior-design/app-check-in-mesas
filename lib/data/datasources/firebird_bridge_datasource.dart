@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
+import '../../domain/entities/app_config.dart';
 import '../models/mesa_model.dart';
 
 class FirebirdBridgeDataSource {
@@ -24,17 +25,68 @@ class FirebirdBridgeDataSource {
     return null;
   }
 
-  /// Conecta diretamente à base de dados Firebird e extrai todas as mesas cadastradas na TB_MESA
+  /// Constrói o identificador de conexão compatível com Firebird 5.0
+  String _montarStringConexao(AppConfig config) {
+    return config.stringConexaoFirebird;
+  }
+
+  /// Testa a conexão direta com o Firebird 5.0 e retorna informações da base
+  Future<String> testarConexaoDirectFirebird(AppConfig config) async {
+    if (kIsWeb || !Platform.isWindows) {
+      throw UnsupportedError(
+        'A verificação direta de conexão com o Firebird .FDB via ISQL requer Windows Desktop.',
+      );
+    }
+
+    final isqlPath = _obterCaminhoIsql();
+    if (isqlPath == null) {
+      throw Exception('Utilitário isql.exe do Firebird não encontrado.');
+    }
+
+    final stringConexao = _montarStringConexao(config);
+
+    try {
+      final process = await Process.start(
+        isqlPath,
+        [
+          '-u', config.usuarioBanco,
+          '-p', config.senhaBanco,
+          '-q',
+          stringConexao,
+        ],
+        runInShell: false,
+      );
+
+      process.stdin.writeln('SHOW DATABASE;');
+      process.stdin.writeln('QUIT;');
+      await process.stdin.flush();
+      await process.stdin.close();
+
+      final output = await process.stdout.transform(systemEncoding.decoder).join();
+      final errOutput = await process.stderr.transform(systemEncoding.decoder).join();
+      final exitCode = await process.exitCode;
+
+      if (exitCode != 0 && errOutput.trim().isNotEmpty) {
+        throw Exception('Falha ao conectar: $errOutput');
+      }
+
+      if (output.contains('ODS') || output.contains('Database:')) {
+        return 'Conexão bem-sucedida com Firebird 5.0!\n$stringConexao';
+      }
+
+      return 'Conexão estabelecida com sucesso!';
+    } catch (e) {
+      throw Exception('Falha na conexão com $stringConexao: ${e.toString()}');
+    }
+  }
+
+  /// Conecta diretamente à base de dados Firebird 5.0 e extrai todas as mesas cadastradas na TB_MESA
   Future<List<MesaModel>> extrairMesasDaBaseFirebird({
-    required String caminhoBanco,
-    required String usuario,
-    required String senha,
-    required int empresaId,
+    required AppConfig config,
   }) async {
     if (kIsWeb || !Platform.isWindows) {
       throw UnsupportedError(
-        'A leitura direta de arquivo .FDB via Firebird ISQL está disponível no Windows Desktop. '
-        'Para mobile utilize sincronização via API da retaguarda.',
+        'A leitura direta de arquivo .FDB via Firebird ISQL está disponível no Windows Desktop.',
       );
     }
 
@@ -46,18 +98,14 @@ class FirebirdBridgeDataSource {
       );
     }
 
-    if (!File(caminhoBanco).existsSync()) {
-      throw Exception(
-        'Arquivo de banco de dados não encontrado no caminho informado: $caminhoBanco',
-      );
-    }
+    final stringConexao = _montarStringConexao(config);
 
     // Script SQL para exportar em formato delimitado por ponto e vírgula
     final comandoSql = '''
 SET HEADING OFF;
 SELECT
     MSA_ID || ';' ||
-    COALESCE(MSA_EMPRESA, $empresaId) || ';' ||
+    COALESCE(MSA_EMPRESA, ${config.empresaId}) || ';' ||
     TRIM(MSA_CODIGO) || ';' ||
     COALESCE(TRIM(MSA_DESCRICAO), '') || ';' ||
     COALESCE(MSA_NR_PESSOAS, 4) || ';' ||
@@ -70,10 +118,10 @@ ORDER BY MSA_ID;
       final process = await Process.start(
         isqlPath,
         [
-          '-u', usuario,
-          '-p', senha,
+          '-u', config.usuarioBanco,
+          '-p', config.senhaBanco,
           '-q',
-          caminhoBanco,
+          stringConexao,
         ],
         runInShell: false,
       );
@@ -88,7 +136,7 @@ ORDER BY MSA_ID;
       final exitCode = await process.exitCode;
 
       if (exitCode != 0 && errOutput.trim().isNotEmpty) {
-        throw Exception('Erro ao conectar ao Firebird: $errOutput');
+        throw Exception('Erro ao conectar ao Firebird ($stringConexao): $errOutput');
       }
 
       final List<MesaModel> mesas = [];
@@ -103,7 +151,7 @@ ORDER BY MSA_ID;
         final partes = linhaTrim.split(';');
         if (partes.length >= 6) {
           final int id = int.tryParse(partes[0].trim()) ?? 0;
-          final int emp = int.tryParse(partes[1].trim()) ?? empresaId;
+          final int emp = int.tryParse(partes[1].trim()) ?? config.empresaId;
           final String codigo = partes[2].trim();
           final String desc = partes[3].trim();
           final int nrPessoas = int.tryParse(partes[4].trim()) ?? 4;
@@ -126,7 +174,7 @@ ORDER BY MSA_ID;
 
       if (mesas.isEmpty) {
         throw Exception(
-          'A tabela TB_MESA foi consultada com sucesso, mas nenhum registro de mesa foi retornado.',
+          'A tabela TB_MESA foi consultada com sucesso em $stringConexao, mas nenhum registro de mesa foi retornado.',
         );
       }
 

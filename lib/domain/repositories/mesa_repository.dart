@@ -1,3 +1,4 @@
+import '../entities/app_config.dart';
 import '../entities/mesa.dart';
 
 abstract class MesaRepository {
@@ -10,13 +11,11 @@ abstract class MesaRepository {
     required int quantidade,
   });
 
+  /// Testa a conexão direta com o Firebird 5.0 usando host, porta e caminho
+  Future<String> testarConexaoFirebird({required AppConfig config});
+
   /// Importa as mesas diretamente da base Firebird (.FDB) e sincroniza a base local
-  Future<int> importarMesasDaBaseFirebird({
-    required String caminhoBanco,
-    required String usuario,
-    required String senha,
-    required int empresaId,
-  });
+  Future<int> importarMesasDaBaseFirebird({required AppConfig config});
 
   /// Atualiza o status de ocupação da mesa na retaguarda
   Future<void> atualizarStatusMesa({

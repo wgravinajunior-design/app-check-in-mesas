@@ -1,3 +1,4 @@
+import '../../domain/entities/app_config.dart';
 import '../../domain/entities/mesa.dart';
 import '../../domain/repositories/mesa_repository.dart';
 import '../datasources/firebird_bridge_datasource.dart';
@@ -32,22 +33,21 @@ class MesaRepositoryImpl implements MesaRepository {
   }
 
   @override
+  Future<String> testarConexaoFirebird({required AppConfig config}) {
+    return firebirdBridgeDataSource.testarConexaoDirectFirebird(config);
+  }
+
+  @override
   Future<int> importarMesasDaBaseFirebird({
-    required String caminhoBanco,
-    required String usuario,
-    required String senha,
-    required int empresaId,
+    required AppConfig config,
   }) async {
     final List<MesaModel> mesasFirebird =
         await firebirdBridgeDataSource.extrairMesasDaBaseFirebird(
-      caminhoBanco: caminhoBanco,
-      usuario: usuario,
-      senha: senha,
-      empresaId: empresaId,
+      config: config,
     );
 
     await localDataSource.sincronizarMesasEmLote(
-      empresaId: empresaId,
+      empresaId: config.empresaId,
       novasMesas: mesasFirebird,
     );
 

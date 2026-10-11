@@ -95,16 +95,18 @@ class MesaCubit extends Cubit<MesaState> {
     }
   }
 
+  /// Testa a conexão direta com o Firebird 5.0
+  Future<String> testarConexaoFirebird(AppConfig config) async {
+    return mesaRepository.testarConexaoFirebird(config: config);
+  }
+
   /// Importa e sincroniza as mesas reais cadastradas diretamente na base de dados Firebird
   Future<int> importarMesasDoFirebird(AppConfig config) async {
     _config = config;
     emit(MesaLoading());
     try {
       final int totalImportadas = await mesaRepository.importarMesasDaBaseFirebird(
-        caminhoBanco: config.caminhoBanco,
-        usuario: config.usuarioBanco,
-        senha: config.senhaBanco,
-        empresaId: config.empresaId,
+        config: config,
       );
 
       _config = _config.copyWith(totalMesas: totalImportadas);
