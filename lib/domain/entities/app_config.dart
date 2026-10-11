@@ -8,6 +8,9 @@ class AppConfig extends Equatable {
   final int empresaId;
   final String apiUrl;
   final bool autoSync;
+  final String caminhoBanco;
+  final String usuarioBanco;
+  final String senhaBanco;
 
   const AppConfig({
     this.tempoAlertaMinutos = AppConstants.defaultTempoAlertaMinutos,
@@ -16,6 +19,9 @@ class AppConfig extends Equatable {
     this.empresaId = AppConstants.defaultEmpresaId,
     this.apiUrl = 'http://localhost:8080/api',
     this.autoSync = false,
+    this.caminhoBanco = AppConstants.defaultCaminhoBancoFirebird,
+    this.usuarioBanco = AppConstants.defaultUsuarioFirebird,
+    this.senhaBanco = AppConstants.defaultSenhaFirebird,
   });
 
   AppConfig copyWith({
@@ -25,6 +31,9 @@ class AppConfig extends Equatable {
     int? empresaId,
     String? apiUrl,
     bool? autoSync,
+    String? caminhoBanco,
+    String? usuarioBanco,
+    String? senhaBanco,
   }) {
     return AppConfig(
       tempoAlertaMinutos: tempoAlertaMinutos ?? this.tempoAlertaMinutos,
@@ -33,6 +42,9 @@ class AppConfig extends Equatable {
       empresaId: empresaId ?? this.empresaId,
       apiUrl: apiUrl ?? this.apiUrl,
       autoSync: autoSync ?? this.autoSync,
+      caminhoBanco: caminhoBanco ?? this.caminhoBanco,
+      usuarioBanco: usuarioBanco ?? this.usuarioBanco,
+      senhaBanco: senhaBanco ?? this.senhaBanco,
     );
   }
 
@@ -44,5 +56,8 @@ class AppConfig extends Equatable {
         empresaId,
         apiUrl,
         autoSync,
+        caminhoBanco,
+        usuarioBanco,
+        senhaBanco,
       ];
 }

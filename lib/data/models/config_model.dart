@@ -1,3 +1,4 @@
+import '../../core/constants/app_constants.dart';
 import '../../domain/entities/app_config.dart';
 
 class ConfigModel extends AppConfig {
@@ -8,6 +9,9 @@ class ConfigModel extends AppConfig {
     super.empresaId,
     super.apiUrl,
     super.autoSync,
+    super.caminhoBanco,
+    super.usuarioBanco,
+    super.senhaBanco,
   });
 
   factory ConfigModel.fromEntity(AppConfig entity) {
@@ -18,6 +22,9 @@ class ConfigModel extends AppConfig {
       empresaId: entity.empresaId,
       apiUrl: entity.apiUrl,
       autoSync: entity.autoSync,
+      caminhoBanco: entity.caminhoBanco,
+      usuarioBanco: entity.usuarioBanco,
+      senhaBanco: entity.senhaBanco,
     );
   }
 
@@ -29,17 +36,23 @@ class ConfigModel extends AppConfig {
       'empresaId': empresaId,
       'apiUrl': apiUrl,
       'autoSync': autoSync,
+      'caminhoBanco': caminhoBanco,
+      'usuarioBanco': usuarioBanco,
+      'senhaBanco': senhaBanco,
     };
   }
 
   factory ConfigModel.fromJson(Map<String, dynamic> json) {
     return ConfigModel(
-      tempoAlertaMinutos: json['tempoAlertaMinutos'] as int? ?? 90,
-      tempoLimiteMinutos: json['tempoLimiteMinutos'] as int? ?? 120,
-      totalMesas: json['totalMesas'] as int? ?? 30,
-      empresaId: json['empresaId'] as int? ?? 1,
+      tempoAlertaMinutos: json['tempoAlertaMinutos'] as int? ?? AppConstants.defaultTempoAlertaMinutos,
+      tempoLimiteMinutos: json['tempoLimiteMinutos'] as int? ?? AppConstants.defaultTempoLimiteMinutos,
+      totalMesas: json['totalMesas'] as int? ?? AppConstants.defaultTotalMesas,
+      empresaId: json['empresaId'] as int? ?? AppConstants.defaultEmpresaId,
       apiUrl: json['apiUrl'] as String? ?? 'http://localhost:8080/api',
       autoSync: json['autoSync'] as bool? ?? false,
+      caminhoBanco: json['caminhoBanco'] as String? ?? AppConstants.defaultCaminhoBancoFirebird,
+      usuarioBanco: json['usuarioBanco'] as String? ?? AppConstants.defaultUsuarioFirebird,
+      senhaBanco: json['senhaBanco'] as String? ?? AppConstants.defaultSenhaFirebird,
     );
   }
 }

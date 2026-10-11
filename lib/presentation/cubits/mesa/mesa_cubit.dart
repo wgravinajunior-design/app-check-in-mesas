@@ -95,6 +95,28 @@ class MesaCubit extends Cubit<MesaState> {
     }
   }
 
+  /// Importa e sincroniza as mesas reais cadastradas diretamente na base de dados Firebird
+  Future<int> importarMesasDoFirebird(AppConfig config) async {
+    _config = config;
+    emit(MesaLoading());
+    try {
+      final int totalImportadas = await mesaRepository.importarMesasDaBaseFirebird(
+        caminhoBanco: config.caminhoBanco,
+        usuario: config.usuarioBanco,
+        senha: config.senhaBanco,
+        empresaId: config.empresaId,
+      );
+
+      _config = _config.copyWith(totalMesas: totalImportadas);
+      await carregarMesas(config: _config);
+      return totalImportadas;
+    } catch (e) {
+      emit(MesaError('Erro ao importar mesas da base Firebird: ${e.toString()}'));
+      await carregarMesas(config: _config);
+      rethrow;
+    }
+  }
+
   void _atualizarCronometros() {
     final estadoAtual = state;
     if (estadoAtual is! MesaLoaded) return;

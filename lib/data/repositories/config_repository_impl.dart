@@ -19,6 +19,12 @@ class ConfigRepositoryImpl implements ConfigRepository {
     final String apiUrl = prefs.getString(AppConstants.keyApiUrl) ??
         'http://localhost:8080/api';
     final bool autoSync = prefs.getBool(AppConstants.keyAutoSync) ?? false;
+    final String caminhoBanco = prefs.getString(AppConstants.keyCaminhoBanco) ??
+        AppConstants.defaultCaminhoBancoFirebird;
+    final String usuarioBanco = prefs.getString(AppConstants.keyUsuarioBanco) ??
+        AppConstants.defaultUsuarioFirebird;
+    final String senhaBanco = prefs.getString(AppConstants.keySenhaBanco) ??
+        AppConstants.defaultSenhaFirebird;
 
     return AppConfig(
       tempoAlertaMinutos: tempoAlerta,
@@ -27,6 +33,9 @@ class ConfigRepositoryImpl implements ConfigRepository {
       empresaId: empresaId,
       apiUrl: apiUrl,
       autoSync: autoSync,
+      caminhoBanco: caminhoBanco,
+      usuarioBanco: usuarioBanco,
+      senhaBanco: senhaBanco,
     );
   }
 
@@ -40,5 +49,8 @@ class ConfigRepositoryImpl implements ConfigRepository {
     await prefs.setInt(AppConstants.keyEmpresaId, config.empresaId);
     await prefs.setString(AppConstants.keyApiUrl, config.apiUrl);
     await prefs.setBool(AppConstants.keyAutoSync, config.autoSync);
+    await prefs.setString(AppConstants.keyCaminhoBanco, config.caminhoBanco);
+    await prefs.setString(AppConstants.keyUsuarioBanco, config.usuarioBanco);
+    await prefs.setString(AppConstants.keySenhaBanco, config.senhaBanco);
   }
 }

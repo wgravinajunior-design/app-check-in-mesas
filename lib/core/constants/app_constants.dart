@@ -5,6 +5,13 @@ class AppConstants {
   static const int defaultTotalMesas = 30;
   static const int defaultEmpresaId = 1;
 
+  // Configurações padrão da base Firebird
+  static const String defaultCaminhoBancoFirebird =
+      r'C:\Users\Walter\OneDrive\DADOS\MANSAO\DADOS.FDB';
+  static const String defaultUsuarioFirebird = 'SYSDBA';
+  static const String defaultSenhaFirebird = 'masterkey';
+  static const int defaultPortaFirebird = 3050;
+
   // Status da Tabela TB_INGRESSO
   static const String statusIngressoAberto = 'A';
   static const String statusIngressoFinalizado = 'F';
@@ -20,4 +27,7 @@ class AppConstants {
   static const String keyEmpresaId = 'config_empresa_id';
   static const String keyApiUrl = 'config_api_url';
   static const String keyAutoSync = 'config_auto_sync';
+  static const String keyCaminhoBanco = 'config_caminho_banco_firebird';
+  static const String keyUsuarioBanco = 'config_usuario_firebird';
+  static const String keySenhaBanco = 'config_senha_firebird';
 }

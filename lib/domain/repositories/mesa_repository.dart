@@ -10,6 +10,14 @@ abstract class MesaRepository {
     required int quantidade,
   });
 
+  /// Importa as mesas diretamente da base Firebird (.FDB) e sincroniza a base local
+  Future<int> importarMesasDaBaseFirebird({
+    required String caminhoBanco,
+    required String usuario,
+    required String senha,
+    required int empresaId,
+  });
+
   /// Atualiza o status de ocupação da mesa na retaguarda
   Future<void> atualizarStatusMesa({
     required int mesaId,

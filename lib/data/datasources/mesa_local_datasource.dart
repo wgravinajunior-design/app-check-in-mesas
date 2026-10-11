@@ -1,4 +1,4 @@
-import 'package:sqflite/sqflite.dart';
+import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import '../../core/database/local_database.dart';
 import '../models/mesa_model.dart';
 
@@ -63,6 +63,31 @@ class MesaLocalDataSource {
       }
       await batch.commit(noResult: true);
     }
+  }
+
+  /// Substitui as mesas do SQLite local pelas mesas reais importadas do banco Firebird
+  Future<void> sincronizarMesasEmLote({
+    required int empresaId,
+    required List<MesaModel> novasMesas,
+  }) async {
+    final db = await databaseProvider.database;
+    await db.transaction((txn) async {
+      await txn.delete(
+        'TB_MESA',
+        where: 'MSA_EMPRESA = ?',
+        whereArgs: [empresaId],
+      );
+
+      final batch = txn.batch();
+      for (final mesa in novasMesas) {
+        batch.insert(
+          'TB_MESA',
+          mesa.toDbMap(),
+          conflictAlgorithm: ConflictAlgorithm.replace,
+        );
+      }
+      await batch.commit(noResult: true);
+    });
   }
 
   Future<void> atualizarStatusMesa({

@@ -68,8 +68,8 @@ class _MesaGridScreenState extends State<MesaGridScreen> {
         appBar: AppBar(
           title: const Row(
             children: [
-              Icon(Icons.restaurant_rounded, size: 24),
-              SizedBox(width: 10),
+              Icon(Icons.restaurant_rounded, size: 22),
+              SizedBox(width: 8),
               Text('Controle de Permanência'),
             ],
           ),
@@ -80,12 +80,7 @@ class _MesaGridScreenState extends State<MesaGridScreen> {
               onPressed: () => _checarAtualizacao(silencioso: false),
             ),
             IconButton(
-              tooltip: 'Histórico & Auditoria TB_INGRESSO',
-              icon: const Icon(Icons.receipt_long_rounded),
-              onPressed: () => _abrirHistorico(context),
-            ),
-            IconButton(
-              tooltip: 'Configurações de Tolerância',
+              tooltip: 'Configurações e Auditoria',
               icon: const Icon(Icons.settings_outlined),
               onPressed: () => _abrirConfiguracoes(context),
             ),
@@ -151,38 +146,40 @@ class _MesaGridScreenState extends State<MesaGridScreen> {
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
                                 Icon(Icons.filter_alt_off_rounded,
-                                    size: 48, color: Colors.grey.shade400),
-                                const SizedBox(height: 12),
+                                    size: 44, color: Colors.grey.shade400),
+                                const SizedBox(height: 10),
                                 Text(
                                   'Nenhuma mesa encontrada para o filtro selecionado.',
                                   style: TextStyle(
-                                      color: Colors.grey.shade600, fontSize: 15),
+                                      color: Colors.grey.shade600, fontSize: 14),
                                 ),
                               ],
                             ),
                           )
                         : LayoutBuilder(
                             builder: (context, constraints) {
-                              // Cálculo responsivo do número de colunas
+                              // Cálculo responsivo com colunas mais densas para cards compactos
                               int crossAxisCount;
-                              if (constraints.maxWidth > 1200) {
+                              if (constraints.maxWidth > 1400) {
+                                crossAxisCount = 8;
+                              } else if (constraints.maxWidth > 1100) {
                                 crossAxisCount = 6;
-                              } else if (constraints.maxWidth > 900) {
+                              } else if (constraints.maxWidth > 800) {
                                 crossAxisCount = 4;
-                              } else if (constraints.maxWidth > 600) {
+                              } else if (constraints.maxWidth > 550) {
                                 crossAxisCount = 3;
                               } else {
                                 crossAxisCount = 2;
                               }
 
                               return GridView.builder(
-                                padding: const EdgeInsets.all(12),
+                                padding: const EdgeInsets.all(8),
                                 gridDelegate:
                                     SliverGridDelegateWithFixedCrossAxisCount(
                                   crossAxisCount: crossAxisCount,
-                                  crossAxisSpacing: 10,
-                                  mainAxisSpacing: 10,
-                                  childAspectRatio: 0.88,
+                                  crossAxisSpacing: 8,
+                                  mainAxisSpacing: 8,
+                                  childAspectRatio: 1.15,
                                 ),
                                 itemCount: mesasFiltradas.length,
                                 itemBuilder: (context, index) {
@@ -298,6 +295,22 @@ class _MesaGridScreenState extends State<MesaGridScreen> {
             ),
           );
         },
+        onImportarMesasFirebird: (config) async {
+          final total = await context.read<MesaCubit>().importarMesasDoFirebird(config);
+          final configAtualizada = config.copyWith(totalMesas: total);
+          if (context.mounted) {
+            context.read<ConfigCubit>().salvarConfiguracoes(configAtualizada);
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('$total mesas importadas com sucesso da base de dados!'),
+                backgroundColor: AppTheme.corMesaLivre,
+                behavior: SnackBarBehavior.floating,
+              ),
+            );
+          }
+          return total;
+        },
+        onAbrirAuditoria: () => _abrirHistorico(context),
       ),
     );
   }
