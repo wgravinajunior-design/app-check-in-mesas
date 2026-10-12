@@ -290,7 +290,7 @@ class _ConfigDialogState extends State<ConfigDialog> {
                                       Icon(Icons.storage_rounded, color: Color(0xFF1565C0), size: 20),
                                       SizedBox(width: 8),
                                       Text(
-                                        'Conexão Firebird 5.0 / Servidor',
+                                        'Conexão Direta Firebird 5.0',
                                         style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
                                       ),
                                     ],
@@ -303,7 +303,7 @@ class _ConfigDialogState extends State<ConfigDialog> {
                                       border: Border.all(color: Colors.blue.shade200),
                                     ),
                                     child: const Text(
-                                      'Firebird 5.0',
+                                      'Direto / Nativo',
                                       style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF1565C0)),
                                     ),
                                   ),
@@ -325,7 +325,7 @@ class _ConfigDialogState extends State<ConfigDialog> {
                                     const SizedBox(width: 6),
                                     Expanded(
                                       child: Text(
-                                        'No smartphone Wi-Fi: use o IP ${AppConstants.defaultHostFirebird} e porta ${AppConstants.defaultPortaFirebird}',
+                                        'Conexão direta: use o IP ${AppConstants.defaultHostFirebird} e porta ${AppConstants.defaultPortaFirebird}',
                                         style: const TextStyle(fontSize: 11, color: Color(0xFF1E40AF), fontWeight: FontWeight.w500),
                                       ),
                                     ),
@@ -371,8 +371,8 @@ class _ConfigDialogState extends State<ConfigDialog> {
                                       keyboardType: TextInputType.number,
                                       decoration: InputDecoration(
                                         labelText: 'Porta',
-                                        hintText: '8082',
-                                        helperText: 'Bridge: 8082',
+                                        hintText: '3060',
+                                        helperText: 'Padrão FB5: 3060',
                                         prefixIcon: const Icon(Icons.lan_rounded, size: 18),
                                         border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
                                         isDense: true,
@@ -390,23 +390,6 @@ class _ConfigDialogState extends State<ConfigDialog> {
                                   InkWell(
                                     onTap: () {
                                       setState(() {
-                                        _portaBancoController.text = '8082';
-                                      });
-                                    },
-                                    child: Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                                      decoration: BoxDecoration(
-                                        color: _portaBancoController.text == '8082' ? const Color(0xFFDBEAFE) : Colors.grey.shade100,
-                                        borderRadius: BorderRadius.circular(4),
-                                        border: Border.all(color: _portaBancoController.text == '8082' ? const Color(0xFF2563EB) : Colors.grey.shade300),
-                                      ),
-                                      child: const Text('8082 (Bridge)', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
-                                    ),
-                                  ),
-                                  const SizedBox(width: 6),
-                                  InkWell(
-                                    onTap: () {
-                                      setState(() {
                                         _portaBancoController.text = '3060';
                                       });
                                     },
@@ -417,7 +400,24 @@ class _ConfigDialogState extends State<ConfigDialog> {
                                         borderRadius: BorderRadius.circular(4),
                                         border: Border.all(color: _portaBancoController.text == '3060' ? const Color(0xFF2563EB) : Colors.grey.shade300),
                                       ),
-                                      child: const Text('3060 (FB5 Nativo)', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                                      child: const Text('3060 (FB5)', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 6),
+                                  InkWell(
+                                    onTap: () {
+                                      setState(() {
+                                        _portaBancoController.text = '3050';
+                                      });
+                                    },
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                      decoration: BoxDecoration(
+                                        color: _portaBancoController.text == '3050' ? const Color(0xFFDBEAFE) : Colors.grey.shade100,
+                                        borderRadius: BorderRadius.circular(4),
+                                        border: Border.all(color: _portaBancoController.text == '3050' ? const Color(0xFF2563EB) : Colors.grey.shade300),
+                                      ),
+                                      child: const Text('3050 (Padrão)', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
                                     ),
                                   ),
                                 ],

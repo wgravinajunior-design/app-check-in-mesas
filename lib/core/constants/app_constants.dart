@@ -5,10 +5,9 @@ class AppConstants {
   static const int defaultTotalMesas = 75; // Total de mesas cadastradas na Mansão da Torre
   static const int defaultEmpresaId = 1;
 
-  // Configurações padrão da base Firebird 5.0 e Servidor Bridge
+  // Configurações padrão da base Firebird 5.0 (Conexão Direta Nativa)
   static const String defaultHostFirebird = '192.168.0.109'; // IP da máquina na rede Wi-Fi
-  static const int defaultPortaFirebird = 8082; // Porta do Servidor Bridge REST
-  static const int defaultPortaTcpFirebird = 3060; // Porta direta TCP do Firebird 5.0
+  static const int defaultPortaFirebird = 3060; // Porta TCP padrão nativa do Firebird 5.0
   static const String defaultCaminhoBancoFirebird =
       r'C:\Users\Walter\OneDrive\DADOS\MANSAO\DADOS.FDB';
   static const String defaultUsuarioFirebird = 'SYSDBA';
