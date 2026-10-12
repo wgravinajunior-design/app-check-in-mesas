@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:apk_check_in/core/constants/app_constants.dart';
 import 'package:apk_check_in/core/constants/mesas_padrao_mansao.dart';
+import 'package:apk_check_in/core/utils/barcode_parser.dart';
 import 'package:apk_check_in/core/utils/time_formatter.dart';
 import 'package:apk_check_in/domain/entities/app_config.dart';
 import 'package:apk_check_in/domain/entities/comanda.dart';
@@ -101,6 +102,20 @@ void main() {
       expect(comandaOcupada.isOcupada, isTrue);
       expect(comandaOcupada.statusPermanencia, equals(StatusPermanencia.normal));
       expect(comandaOcupada.tempoDecorrido.inMinutes, equals(30));
+    });
+
+    test('BarcodeParser deve extrair e formatar códigos de mesas e comandas de QR Code e URLs', () {
+      expect(BarcodeParser.extrairIdentificador('15'), equals('15'));
+      expect(BarcodeParser.extrairIdentificador('015'), equals('015'));
+      expect(BarcodeParser.extrairIdentificador('Mesa 15'), equals('15'));
+      expect(BarcodeParser.extrairIdentificador('M-05'), equals('05'));
+      expect(BarcodeParser.extrairIdentificador('COMANDA 42'), equals('42'));
+      expect(BarcodeParser.extrairIdentificador('https://meurestaurante.com/mesa?num=22'), equals('22'));
+      expect(BarcodeParser.extrairIdentificador('https://meurestaurante.com/comanda/35'), equals('35'));
+
+      expect(BarcodeParser.formatarCodigoTresDigitos('5'), equals('005'));
+      expect(BarcodeParser.formatarCodigoTresDigitos('15'), equals('015'));
+      expect(BarcodeParser.formatarCodigoTresDigitos('100'), equals('100'));
     });
   });
 }

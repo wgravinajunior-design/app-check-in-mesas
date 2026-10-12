@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../core/theme/app_theme.dart';
+import '../../core/utils/barcode_parser.dart';
 import '../../domain/entities/comanda.dart';
 import '../../domain/entities/status_permanencia.dart';
 import '../cubits/comanda/comanda_cubit.dart';
 import '../cubits/comanda/comanda_state.dart';
+import 'camera_scanner_dialog.dart';
 import 'check_in_comanda_dialog.dart';
 import 'check_out_comanda_dialog.dart';
 import 'comanda_card_widget.dart';
@@ -196,16 +198,59 @@ class _ComandaTabViewState extends State<ComandaTabView> {
     );
   }
 
+  Future<void> _escanearComandaComCamera() async {
+    final codigoLido = await CameraScannerDialog.abrirLeitor(
+      context,
+      titulo: 'Escanear Comanda',
+      subtitulo: 'Aponte a câmera para o QR Code ou Código da Comanda',
+    );
+
+    if (codigoLido == null || !mounted) return;
+
+    final state = context.read<ComandaCubit>().state;
+    if (state is ComandaLoaded) {
+      final codFormatado = BarcodeParser.formatarCodigoTresDigitos(codigoLido);
+      final comandaEncontrada = state.comandas.cast<Comanda?>().firstWhere(
+        (c) =>
+            c != null &&
+            (c.codigo == codFormatado ||
+                c.codigo == codigoLido ||
+                int.tryParse(c.codigo) == int.tryParse(codigoLido)),
+        orElse: () => null,
+      );
+
+      _buscaController.text = codigoLido;
+      setState(() {
+        _termoBusca = codigoLido;
+      });
+
+      if (comandaEncontrada != null) {
+        _tratarCliqueComanda(context, comandaEncontrada);
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Comanda "$codigoLido" não encontrada no sistema.'),
+            backgroundColor: Colors.orange.shade800,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    }
+  }
+
   Widget _buildBarraBusca() {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       child: TextField(
         controller: _buscaController,
         decoration: InputDecoration(
-          hintText: 'Buscar por número da comanda...',
+          hintText: 'Buscar ou escanear número da comanda...',
           prefixIcon: const Icon(Icons.search_rounded, size: 20),
-          suffixIcon: _termoBusca.isNotEmpty
-              ? IconButton(
+          suffixIcon: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (_termoBusca.isNotEmpty)
+                IconButton(
                   icon: const Icon(Icons.clear_rounded, size: 18),
                   onPressed: () {
                     _buscaController.clear();
@@ -213,8 +258,14 @@ class _ComandaTabViewState extends State<ComandaTabView> {
                       _termoBusca = '';
                     });
                   },
-                )
-              : null,
+                ),
+              IconButton(
+                icon: const Icon(Icons.qr_code_scanner_rounded, color: Color(0xFF0D9488)),
+                tooltip: 'Escanear comanda com a câmera',
+                onPressed: _escanearComandaComCamera,
+              ),
+            ],
+          ),
           filled: true,
           fillColor: Theme.of(context).cardColor,
           isDense: true,

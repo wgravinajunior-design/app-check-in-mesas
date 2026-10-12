@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../core/services/app_update_service.dart';
 import '../../core/theme/app_theme.dart';
+import '../../core/utils/barcode_parser.dart';
 import '../../core/utils/time_formatter.dart';
 import '../../domain/entities/app_config.dart';
 import '../../domain/entities/mesa.dart';
@@ -12,6 +13,7 @@ import '../cubits/config/config_cubit.dart';
 import '../cubits/config/config_state.dart';
 import '../cubits/mesa/mesa_cubit.dart';
 import '../cubits/mesa/mesa_state.dart';
+import '../widgets/camera_scanner_dialog.dart';
 import '../widgets/check_in_dialog.dart';
 import '../widgets/check_out_dialog.dart';
 import '../widgets/comanda_tab_view.dart';
@@ -81,6 +83,46 @@ class _MesaGridScreenState extends State<MesaGridScreen> {
           ),
         ),
       );
+    }
+  }
+
+  Future<void> _escanearMesaComCamera() async {
+    final codigoLido = await CameraScannerDialog.abrirLeitor(
+      context,
+      titulo: 'Escanear Mesa',
+      subtitulo: 'Aponte a câmera para o QR Code ou Código da Mesa',
+    );
+
+    if (codigoLido == null || !mounted) return;
+
+    final mesaState = context.read<MesaCubit>().state;
+    if (mesaState is MesaLoaded) {
+      final codFormatado = BarcodeParser.formatarCodigoTresDigitos(codigoLido);
+      final mesaEncontrada = mesaState.mesas.cast<Mesa?>().firstWhere(
+        (m) =>
+            m != null &&
+            (m.codigo == codFormatado ||
+                m.codigo == codigoLido ||
+                int.tryParse(m.codigo) == int.tryParse(codigoLido)),
+        orElse: () => null,
+      );
+
+      _buscaController.text = codigoLido;
+      setState(() {
+        _termoBusca = codigoLido;
+      });
+
+      if (mesaEncontrada != null) {
+        _tratarCliqueMesa(context, mesaEncontrada, mesaState.mesas);
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Mesa "$codigoLido" não encontrada no salão.'),
+            backgroundColor: Colors.orange.shade800,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
     }
   }
 
@@ -201,6 +243,16 @@ class _MesaGridScreenState extends State<MesaGridScreen> {
                         config.copyWith(modoEscuro: !config.modoEscuro);
                     context.read<ConfigCubit>().salvarConfiguracoes(novaConfig);
                   },
+                ),
+
+                // Escanear Câmera (Leitor Rápido de Mesa)
+                IconButton(
+                  visualDensity: VisualDensity.compact,
+                  padding: const EdgeInsets.symmetric(horizontal: 2),
+                  constraints: const BoxConstraints(minWidth: 34, minHeight: 34),
+                  tooltip: 'Escanear com a Câmera',
+                  icon: const Icon(Icons.qr_code_scanner_rounded, size: 20, color: Colors.amber),
+                  onPressed: _escanearMesaComCamera,
                 ),
 
                 // Métricas do Salão
@@ -398,10 +450,13 @@ class _MesaGridScreenState extends State<MesaGridScreen> {
       child: TextField(
         controller: _buscaController,
         decoration: InputDecoration(
-          hintText: 'Buscar por número ou identificador da mesa...',
+          hintText: 'Buscar ou escanear número da mesa...',
           prefixIcon: const Icon(Icons.search_rounded, size: 20),
-          suffixIcon: _termoBusca.isNotEmpty
-              ? IconButton(
+          suffixIcon: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (_termoBusca.isNotEmpty)
+                IconButton(
                   icon: const Icon(Icons.clear_rounded, size: 18),
                   onPressed: () {
                     _buscaController.clear();
@@ -409,8 +464,14 @@ class _MesaGridScreenState extends State<MesaGridScreen> {
                       _termoBusca = '';
                     });
                   },
-                )
-              : null,
+                ),
+              IconButton(
+                icon: const Icon(Icons.qr_code_scanner_rounded, color: Color(0xFF0284C7)),
+                tooltip: 'Escanear mesa com a câmera',
+                onPressed: _escanearMesaComCamera,
+              ),
+            ],
+          ),
           filled: true,
           fillColor: Theme.of(context).cardColor,
           isDense: true,
