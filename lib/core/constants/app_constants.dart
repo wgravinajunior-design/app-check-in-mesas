@@ -2,12 +2,13 @@ class AppConstants {
   // Configurações padrão de permanência em minutos
   static const int defaultTempoAlertaMinutos = 90; // 1h30m
   static const int defaultTempoLimiteMinutos = 120; // 2h00m
-  static const int defaultTotalMesas = 30;
+  static const int defaultTotalMesas = 75; // Total de mesas cadastradas na Mansão da Torre
   static const int defaultEmpresaId = 1;
 
-  // Configurações padrão da base Firebird 5.0
-  static const String defaultHostFirebird = 'localhost';
-  static const int defaultPortaFirebird = 3060; // Firebird 5.0 escutando em 3060
+  // Configurações padrão da base Firebird 5.0 e Servidor Bridge
+  static const String defaultHostFirebird = '192.168.0.109'; // IP da máquina na rede Wi-Fi
+  static const int defaultPortaFirebird = 8082; // Porta do Servidor Bridge REST
+  static const int defaultPortaTcpFirebird = 3060; // Porta direta TCP do Firebird 5.0
   static const String defaultCaminhoBancoFirebird =
       r'C:\Users\Walter\OneDrive\DADOS\MANSAO\DADOS.FDB';
   static const String defaultUsuarioFirebird = 'SYSDBA';

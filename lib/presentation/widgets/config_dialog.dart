@@ -1,3 +1,5 @@
+import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import '../../core/constants/app_constants.dart';
 import '../../domain/entities/app_config.dart';
@@ -57,8 +59,13 @@ class _ConfigDialogState extends State<ConfigDialog> {
     _empresaIdController = TextEditingController(
       text: widget.configAtual.empresaId.toString(),
     );
+    final hostSalvo = widget.configAtual.hostBanco.trim();
+    final hostSugerido = (!kIsWeb && Platform.isAndroid && (hostSalvo == 'localhost' || hostSalvo == '127.0.0.1' || hostSalvo.isEmpty))
+        ? AppConstants.defaultHostFirebird
+        : (hostSalvo.isEmpty ? AppConstants.defaultHostFirebird : hostSalvo);
+
     _hostBancoController = TextEditingController(
-      text: widget.configAtual.hostBanco,
+      text: hostSugerido,
     );
     _portaBancoController = TextEditingController(
       text: widget.configAtual.portaBanco.toString(),
@@ -156,7 +163,7 @@ class _ConfigDialogState extends State<ConfigDialog> {
           _isImportando = false;
           _statusSucesso = true;
           _totalMesasController.text = total.toString();
-          _statusMensagem = '$total mesas cadastradas importadas com sucesso da base Firebird 5.0!';
+          _statusMensagem = '$total mesas da Mansão da Torre sincronizadas com sucesso!';
         });
       }
     } catch (e) {
@@ -283,7 +290,7 @@ class _ConfigDialogState extends State<ConfigDialog> {
                                       Icon(Icons.storage_rounded, color: Color(0xFF1565C0), size: 20),
                                       SizedBox(width: 8),
                                       Text(
-                                        'Conexão Direta Firebird 5.0',
+                                        'Conexão Firebird 5.0 / Servidor',
                                         style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
                                       ),
                                     ],
@@ -296,11 +303,47 @@ class _ConfigDialogState extends State<ConfigDialog> {
                                       border: Border.all(color: Colors.blue.shade200),
                                     ),
                                     child: const Text(
-                                      'Firebird 5.0 (ODS 13.1)',
+                                      'Firebird 5.0',
                                       style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF1565C0)),
                                     ),
                                   ),
                                 ],
+                              ),
+                              const SizedBox(height: 8),
+
+                              // Banner explicativo para Mobile / Wi-Fi
+                              Container(
+                                padding: const EdgeInsets.all(8),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFEFF6FF),
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(color: const Color(0xFFBFDBFE)),
+                                ),
+                                child: Row(
+                                  children: [
+                                    const Icon(Icons.wifi_rounded, size: 16, color: Color(0xFF1D4ED8)),
+                                    const SizedBox(width: 6),
+                                    Expanded(
+                                      child: Text(
+                                        'No smartphone Wi-Fi: use o IP ${AppConstants.defaultHostFirebird} e porta ${AppConstants.defaultPortaFirebird}',
+                                        style: const TextStyle(fontSize: 11, color: Color(0xFF1E40AF), fontWeight: FontWeight.w500),
+                                      ),
+                                    ),
+                                    InkWell(
+                                      onTap: () {
+                                        _hostBancoController.text = AppConstants.defaultHostFirebird;
+                                        _portaBancoController.text = AppConstants.defaultPortaFirebird.toString();
+                                      },
+                                      child: const Padding(
+                                        padding: EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                                        child: Text(
+                                          'Aplicar IP',
+                                          style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF1D4ED8), decoration: TextDecoration.underline),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
                               ),
                               const SizedBox(height: 12),
 
@@ -312,8 +355,8 @@ class _ConfigDialogState extends State<ConfigDialog> {
                                     child: TextFormField(
                                       controller: _hostBancoController,
                                       decoration: InputDecoration(
-                                        labelText: 'Host / IP do Servidor',
-                                        hintText: 'localhost ou 192.168.1.100',
+                                        labelText: 'Host / IP Servidor',
+                                        hintText: '192.168.0.109',
                                         prefixIcon: const Icon(Icons.dns_rounded, size: 18),
                                         border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
                                         isDense: true,
@@ -328,12 +371,53 @@ class _ConfigDialogState extends State<ConfigDialog> {
                                       keyboardType: TextInputType.number,
                                       decoration: InputDecoration(
                                         labelText: 'Porta',
-                                        hintText: '3060',
-                                        helperText: 'Padrão FB5: 3060',
+                                        hintText: '8082',
+                                        helperText: 'Bridge: 8082',
                                         prefixIcon: const Icon(Icons.lan_rounded, size: 18),
                                         border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
                                         isDense: true,
                                       ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 6),
+
+                              // Seleção rápida de porta
+                              Row(
+                                children: [
+                                  const Text('Porta rápida: ', style: TextStyle(fontSize: 11, color: Colors.black54)),
+                                  InkWell(
+                                    onTap: () {
+                                      setState(() {
+                                        _portaBancoController.text = '8082';
+                                      });
+                                    },
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                      decoration: BoxDecoration(
+                                        color: _portaBancoController.text == '8082' ? const Color(0xFFDBEAFE) : Colors.grey.shade100,
+                                        borderRadius: BorderRadius.circular(4),
+                                        border: Border.all(color: _portaBancoController.text == '8082' ? const Color(0xFF2563EB) : Colors.grey.shade300),
+                                      ),
+                                      child: const Text('8082 (Bridge)', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 6),
+                                  InkWell(
+                                    onTap: () {
+                                      setState(() {
+                                        _portaBancoController.text = '3060';
+                                      });
+                                    },
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                      decoration: BoxDecoration(
+                                        color: _portaBancoController.text == '3060' ? const Color(0xFFDBEAFE) : Colors.grey.shade100,
+                                        borderRadius: BorderRadius.circular(4),
+                                        border: Border.all(color: _portaBancoController.text == '3060' ? const Color(0xFF2563EB) : Colors.grey.shade300),
+                                      ),
+                                      child: const Text('3060 (FB5 Nativo)', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
                                     ),
                                   ),
                                 ],
@@ -348,7 +432,7 @@ class _ConfigDialogState extends State<ConfigDialog> {
                                   hintText: r'C:\Users\Walter\OneDrive\DADOS\MANSAO\DADOS.FDB',
                                   prefixIcon: const Icon(Icons.folder_open_rounded, size: 18),
                                   suffixIcon: IconButton(
-                                    tooltip: 'Restaurar caminho padrão MANSAO',
+                                    tooltip: 'Restaurar padrão Mansão',
                                     icon: const Icon(Icons.restore_rounded, size: 20),
                                     onPressed: () {
                                       _hostBancoController.text = AppConstants.defaultHostFirebird;
@@ -429,7 +513,7 @@ class _ConfigDialogState extends State<ConfigDialog> {
                                               child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
                                             )
                                           : const Icon(Icons.cloud_download_rounded, size: 17),
-                                      label: const Text('Trazer Mesas (TB_MESA)', style: TextStyle(fontSize: 12)),
+                                      label: const Text('Trazer Mesas (75)', style: TextStyle(fontSize: 12)),
                                       onPressed: (_isTestando || _isImportando) ? null : _executarImportacaoFirebird,
                                     ),
                                   ),
@@ -452,7 +536,7 @@ class _ConfigDialogState extends State<ConfigDialog> {
                                     crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
                                       Icon(
-                                        _statusSucesso ? Icons.check_circle_outline_rounded : Icons.error_outline_rounded,
+                                        _statusSucesso ? Icons.check_circle_outline_rounded : Icons.info_outline_rounded,
                                         size: 16,
                                         color: _statusSucesso ? Colors.green.shade800 : Colors.red.shade800,
                                       ),
