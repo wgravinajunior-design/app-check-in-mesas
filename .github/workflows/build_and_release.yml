@@ -79,7 +79,7 @@ jobs:
           echo "$NOTES" >> $GITHUB_OUTPUT
           echo "" >> $GITHUB_OUTPUT
           echo "### 📦 Download do Aplicativo:" >> $GITHUB_OUTPUT
-          echo "Baixe o arquivo \`app-release.apk\` anexo abaixo para instalar ou atualizar diretamente no seu smartphone ou tablet Android." >> $GITHUB_OUTPUT
+          echo "Baixe o arquivo \`CheckIn-Mesas-${TAG}.apk\` (ou \`app-release.apk\`) anexo abaixo para instalar ou atualizar diretamente no seu smartphone ou tablet Android sem precisar desinstalar a versão anterior." >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
 
       - name: Preparar APK com Nome e Versão

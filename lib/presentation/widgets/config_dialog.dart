@@ -1,7 +1,4 @@
-import 'dart:io';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import '../../core/constants/app_constants.dart';
 import '../../domain/entities/app_config.dart';
 
 class ConfigDialog extends StatefulWidget {
@@ -27,15 +24,12 @@ class ConfigDialog extends StatefulWidget {
 class _ConfigDialogState extends State<ConfigDialog> {
   late TextEditingController _tempoAlertaController;
   late TextEditingController _tempoLimiteController;
-  late TextEditingController _totalMesasController;
   late TextEditingController _empresaIdController;
   late TextEditingController _hostBancoController;
   late TextEditingController _portaBancoController;
   late TextEditingController _caminhoBancoController;
   late TextEditingController _usuarioBancoController;
   late TextEditingController _senhaBancoController;
-  late TextEditingController _apiUrlController;
-  late bool _autoSync;
 
   bool _isTestando = false;
   bool _isImportando = false;
@@ -53,50 +47,38 @@ class _ConfigDialogState extends State<ConfigDialog> {
     _tempoLimiteController = TextEditingController(
       text: widget.configAtual.tempoLimiteMinutos.toString(),
     );
-    _totalMesasController = TextEditingController(
-      text: widget.configAtual.totalMesas.toString(),
-    );
     _empresaIdController = TextEditingController(
       text: widget.configAtual.empresaId.toString(),
     );
-    final hostSalvo = widget.configAtual.hostBanco.trim();
-    final hostSugerido = (!kIsWeb && Platform.isAndroid && (hostSalvo == 'localhost' || hostSalvo == '127.0.0.1' || hostSalvo.isEmpty))
-        ? AppConstants.defaultHostFirebird
-        : (hostSalvo.isEmpty ? AppConstants.defaultHostFirebird : hostSalvo);
 
+    // Valores por máquina/ambiente (sem valores prefixados fixos)
     _hostBancoController = TextEditingController(
-      text: hostSugerido,
+      text: widget.configAtual.hostBanco,
     );
     _portaBancoController = TextEditingController(
-      text: widget.configAtual.portaBanco.toString(),
+      text: widget.configAtual.portaBanco > 0 ? widget.configAtual.portaBanco.toString() : '3060',
     );
     _caminhoBancoController = TextEditingController(
       text: widget.configAtual.caminhoBanco,
     );
     _usuarioBancoController = TextEditingController(
-      text: widget.configAtual.usuarioBanco,
+      text: widget.configAtual.usuarioBanco.isNotEmpty ? widget.configAtual.usuarioBanco : 'SYSDBA',
     );
     _senhaBancoController = TextEditingController(
-      text: widget.configAtual.senhaBanco,
+      text: widget.configAtual.senhaBanco.isNotEmpty ? widget.configAtual.senhaBanco : 'masterkey',
     );
-    _apiUrlController = TextEditingController(
-      text: widget.configAtual.apiUrl,
-    );
-    _autoSync = widget.configAtual.autoSync;
   }
 
   @override
   void dispose() {
     _tempoAlertaController.dispose();
     _tempoLimiteController.dispose();
-    _totalMesasController.dispose();
     _empresaIdController.dispose();
     _hostBancoController.dispose();
     _portaBancoController.dispose();
     _caminhoBancoController.dispose();
     _usuarioBancoController.dispose();
     _senhaBancoController.dispose();
-    _apiUrlController.dispose();
     super.dispose();
   }
 
@@ -104,15 +86,12 @@ class _ConfigDialogState extends State<ConfigDialog> {
     return widget.configAtual.copyWith(
       tempoAlertaMinutos: int.tryParse(_tempoAlertaController.text) ?? widget.configAtual.tempoAlertaMinutos,
       tempoLimiteMinutos: int.tryParse(_tempoLimiteController.text) ?? widget.configAtual.tempoLimiteMinutos,
-      totalMesas: int.tryParse(_totalMesasController.text) ?? widget.configAtual.totalMesas,
       empresaId: int.tryParse(_empresaIdController.text) ?? widget.configAtual.empresaId,
       hostBanco: _hostBancoController.text.trim(),
-      portaBanco: int.tryParse(_portaBancoController.text) ?? widget.configAtual.portaBanco,
+      portaBanco: int.tryParse(_portaBancoController.text) ?? 3060,
       caminhoBanco: _caminhoBancoController.text.trim(),
       usuarioBanco: _usuarioBancoController.text.trim(),
       senhaBanco: _senhaBancoController.text.trim(),
-      apiUrl: _apiUrlController.text.trim(),
-      autoSync: _autoSync,
     );
   }
 
@@ -162,8 +141,7 @@ class _ConfigDialogState extends State<ConfigDialog> {
         setState(() {
           _isImportando = false;
           _statusSucesso = true;
-          _totalMesasController.text = total.toString();
-          _statusMensagem = '$total mesas da Mansão da Torre sincronizadas com sucesso!';
+          _statusMensagem = '$total mesas sincronizadas com sucesso do ERP!';
         });
       }
     } catch (e) {
@@ -171,7 +149,7 @@ class _ConfigDialogState extends State<ConfigDialog> {
         setState(() {
           _isImportando = false;
           _statusSucesso = false;
-          _statusMensagem = 'Falha ao importar: ${e.toString().replaceAll('Exception: ', '')}';
+          _statusMensagem = 'Falha ao buscar mesas: ${e.toString().replaceAll('Exception: ', '')}';
         });
       }
     }
@@ -179,21 +157,32 @@ class _ConfigDialogState extends State<ConfigDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final media = MediaQuery.of(context);
+    final isTablet = media.size.width >= 600;
+
     return Dialog(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      insetPadding: EdgeInsets.symmetric(
+        horizontal: isTablet ? 40 : 16,
+        vertical: isTablet ? 32 : 18,
+      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 620, maxHeight: 750),
+        constraints: BoxConstraints(
+          maxWidth: isTablet ? 640 : double.infinity,
+          maxHeight: media.size.height * 0.90,
+        ),
         child: Padding(
-          padding: const EdgeInsets.all(20),
+          padding: EdgeInsets.all(isTablet ? 24 : 16),
           child: Column(
+            mainAxisSize: MainAxisSize.min,
             children: [
-              // Cabeçalho
+              // Cabeçalho da Janela
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   const Row(
                     children: [
-                      Icon(Icons.settings_outlined, color: Color(0xFF0D47A1), size: 24),
+                      Icon(Icons.settings_outlined, color: Color(0xFF0D47A1), size: 22),
                       SizedBox(width: 8),
                       Text(
                         'Configurações',
@@ -203,62 +192,63 @@ class _ConfigDialogState extends State<ConfigDialog> {
                   ),
                   IconButton(
                     icon: const Icon(Icons.close_rounded),
+                    tooltip: 'Fechar',
                     onPressed: () => Navigator.of(context).pop(),
                   ),
                 ],
               ),
-              const Divider(height: 16),
+              const Divider(height: 12),
 
-              // Conteúdo rolável
+              // Conteúdo Rolável Responsivo
               Expanded(
                 child: SingleChildScrollView(
                   child: Form(
                     key: _formKey,
                     child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        // SEÇÃO 1: AUDITORIA (TB_INGRESSO) DENTRO DAS CONFIGURAÇÕES
+                        // SEÇÃO: AUDITORIA (TB_INGRESSO)
                         Container(
-                          padding: const EdgeInsets.all(12),
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                           decoration: BoxDecoration(
                             color: const Color(0xFFF1F5F9),
-                            borderRadius: BorderRadius.circular(12),
+                            borderRadius: BorderRadius.circular(10),
                             border: Border.all(color: const Color(0xFFCBD5E1)),
                           ),
                           child: Row(
                             children: [
                               Container(
-                                padding: const EdgeInsets.all(8),
+                                padding: const EdgeInsets.all(6),
                                 decoration: BoxDecoration(
-                                  color: const Color(0xFF0D47A1).withValues(alpha: 0.15),
-                                  borderRadius: BorderRadius.circular(8),
+                                  color: const Color(0xFF0D47A1).withValues(alpha: 0.12),
+                                  borderRadius: BorderRadius.circular(6),
                                 ),
-                                child: const Icon(Icons.receipt_long_rounded, color: Color(0xFF0D47A1), size: 22),
+                                child: const Icon(Icons.receipt_long_rounded, color: Color(0xFF0D47A1), size: 20),
                               ),
-                              const SizedBox(width: 12),
+                              const SizedBox(width: 10),
                               Expanded(
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     const Text(
-                                      'Auditoria de Permanência (TB_INGRESSO)',
+                                      'Auditoria (TB_INGRESSO)',
                                       style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
                                     ),
                                     Text(
-                                      'Histórico de check-in, check-out, duração e rotatividade.',
+                                      'Histórico de check-in, check-out e rotatividade.',
                                       style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
                                     ),
                                   ],
                                 ),
                               ),
-                              const SizedBox(width: 8),
                               ElevatedButton.icon(
                                 style: ElevatedButton.styleFrom(
                                   backgroundColor: const Color(0xFF0D47A1),
                                   foregroundColor: Colors.white,
-                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                                 ),
-                                icon: const Icon(Icons.open_in_new_rounded, size: 15),
+                                icon: const Icon(Icons.open_in_new_rounded, size: 14),
                                 label: const Text('Auditoria', style: TextStyle(fontSize: 12)),
                                 onPressed: () {
                                   Navigator.of(context).pop();
@@ -269,182 +259,82 @@ class _ConfigDialogState extends State<ConfigDialog> {
                           ),
                         ),
 
-                        const SizedBox(height: 16),
+                        const SizedBox(height: 14),
 
-                        // SEÇÃO 2: CONEXÃO DIRETA COM O FIREBIRD 5.0
+                        // SEÇÃO: CONEXÃO (APENAS "CONEXÃO")
                         Container(
                           padding: const EdgeInsets.all(14),
                           decoration: BoxDecoration(
                             color: const Color(0xFFF8FAFC),
-                            borderRadius: BorderRadius.circular(14),
+                            borderRadius: BorderRadius.circular(12),
                             border: Border.all(color: const Color(0xFFE2E8F0)),
                           ),
                           child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
                             children: [
-                              Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              const Row(
                                 children: [
-                                  const Row(
-                                    children: [
-                                      Icon(Icons.storage_rounded, color: Color(0xFF1565C0), size: 20),
-                                      SizedBox(width: 8),
-                                      Text(
-                                        'Conexão Direta Firebird 5.0',
-                                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
-                                      ),
-                                    ],
-                                  ),
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                                    decoration: BoxDecoration(
-                                      color: Colors.blue.shade50,
-                                      borderRadius: BorderRadius.circular(12),
-                                      border: Border.all(color: Colors.blue.shade200),
-                                    ),
-                                    child: const Text(
-                                      'Direto / Nativo',
-                                      style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF1565C0)),
-                                    ),
+                                  Icon(Icons.storage_rounded, color: Color(0xFF1565C0), size: 19),
+                                  SizedBox(width: 8),
+                                  Text(
+                                    'Conexão',
+                                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
                                   ),
                                 ],
                               ),
-                              const SizedBox(height: 8),
-
-                              // Banner explicativo para Mobile / Wi-Fi
-                              Container(
-                                padding: const EdgeInsets.all(8),
-                                decoration: BoxDecoration(
-                                  color: const Color(0xFFEFF6FF),
-                                  borderRadius: BorderRadius.circular(8),
-                                  border: Border.all(color: const Color(0xFFBFDBFE)),
-                                ),
-                                child: Row(
-                                  children: [
-                                    const Icon(Icons.wifi_rounded, size: 16, color: Color(0xFF1D4ED8)),
-                                    const SizedBox(width: 6),
-                                    Expanded(
-                                      child: Text(
-                                        'Conexão direta: use o IP ${AppConstants.defaultHostFirebird} e porta ${AppConstants.defaultPortaFirebird}',
-                                        style: const TextStyle(fontSize: 11, color: Color(0xFF1E40AF), fontWeight: FontWeight.w500),
-                                      ),
-                                    ),
-                                    InkWell(
-                                      onTap: () {
-                                        _hostBancoController.text = AppConstants.defaultHostFirebird;
-                                        _portaBancoController.text = AppConstants.defaultPortaFirebird.toString();
-                                      },
-                                      child: const Padding(
-                                        padding: EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-                                        child: Text(
-                                          'Aplicar IP',
-                                          style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF1D4ED8), decoration: TextDecoration.underline),
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
                               const SizedBox(height: 12),
 
-                              // Host e Porta
+                              // Host e Porta bem alinhados
                               Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Expanded(
-                                    flex: 3,
+                                    flex: 7,
                                     child: TextFormField(
                                       controller: _hostBancoController,
                                       decoration: InputDecoration(
                                         labelText: 'Host / IP Servidor',
-                                        hintText: '192.168.0.109',
+                                        hintText: 'Ex.: 192.168.1.100',
                                         prefixIcon: const Icon(Icons.dns_rounded, size: 18),
                                         border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
                                         isDense: true,
+                                        contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
                                       ),
                                     ),
                                   ),
-                                  const SizedBox(width: 8),
+                                  const SizedBox(width: 10),
                                   Expanded(
-                                    flex: 2,
+                                    flex: 3,
                                     child: TextFormField(
                                       controller: _portaBancoController,
                                       keyboardType: TextInputType.number,
                                       decoration: InputDecoration(
                                         labelText: 'Porta',
                                         hintText: '3060',
-                                        helperText: 'Padrão FB5: 3060',
                                         prefixIcon: const Icon(Icons.lan_rounded, size: 18),
                                         border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
                                         isDense: true,
+                                        contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
                                       ),
                                     ),
                                   ),
                                 ],
                               ),
-                              const SizedBox(height: 6),
+                              const SizedBox(height: 10),
 
-                              // Seleção rápida de porta
-                              Row(
-                                children: [
-                                  const Text('Porta rápida: ', style: TextStyle(fontSize: 11, color: Colors.black54)),
-                                  InkWell(
-                                    onTap: () {
-                                      setState(() {
-                                        _portaBancoController.text = '3060';
-                                      });
-                                    },
-                                    child: Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                                      decoration: BoxDecoration(
-                                        color: _portaBancoController.text == '3060' ? const Color(0xFFDBEAFE) : Colors.grey.shade100,
-                                        borderRadius: BorderRadius.circular(4),
-                                        border: Border.all(color: _portaBancoController.text == '3060' ? const Color(0xFF2563EB) : Colors.grey.shade300),
-                                      ),
-                                      child: const Text('3060 (FB5)', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
-                                    ),
-                                  ),
-                                  const SizedBox(width: 6),
-                                  InkWell(
-                                    onTap: () {
-                                      setState(() {
-                                        _portaBancoController.text = '3050';
-                                      });
-                                    },
-                                    child: Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                                      decoration: BoxDecoration(
-                                        color: _portaBancoController.text == '3050' ? const Color(0xFFDBEAFE) : Colors.grey.shade100,
-                                        borderRadius: BorderRadius.circular(4),
-                                        border: Border.all(color: _portaBancoController.text == '3050' ? const Color(0xFF2563EB) : Colors.grey.shade300),
-                                      ),
-                                      child: const Text('3050 (Padrão)', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 8),
-
-                              // Caminho da Base
+                              // Caminho da Base de Dados
                               TextFormField(
                                 controller: _caminhoBancoController,
                                 decoration: InputDecoration(
-                                  labelText: 'Caminho Completo da Base (.FDB)',
-                                  hintText: r'C:\Users\Walter\OneDrive\DADOS\MANSAO\DADOS.FDB',
+                                  labelText: 'Caminho da Base (.FDB)',
+                                  hintText: r'Ex.: C:\Sistemas\DADOS.FDB',
                                   prefixIcon: const Icon(Icons.folder_open_rounded, size: 18),
-                                  suffixIcon: IconButton(
-                                    tooltip: 'Restaurar padrão Mansão',
-                                    icon: const Icon(Icons.restore_rounded, size: 20),
-                                    onPressed: () {
-                                      _hostBancoController.text = AppConstants.defaultHostFirebird;
-                                      _portaBancoController.text = AppConstants.defaultPortaFirebird.toString();
-                                      _caminhoBancoController.text = AppConstants.defaultCaminhoBancoFirebird;
-                                    },
-                                  ),
                                   border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
                                   isDense: true,
+                                  contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
                                 ),
                               ),
-                              const SizedBox(height: 8),
+                              const SizedBox(height: 10),
 
                               // Usuário e Senha
                               Row(
@@ -454,22 +344,26 @@ class _ConfigDialogState extends State<ConfigDialog> {
                                       controller: _usuarioBancoController,
                                       decoration: InputDecoration(
                                         labelText: 'Usuário',
+                                        hintText: 'SYSDBA',
                                         prefixIcon: const Icon(Icons.person_outline, size: 18),
                                         border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
                                         isDense: true,
+                                        contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
                                       ),
                                     ),
                                   ),
-                                  const SizedBox(width: 8),
+                                  const SizedBox(width: 10),
                                   Expanded(
                                     child: TextFormField(
                                       controller: _senhaBancoController,
                                       obscureText: true,
                                       decoration: InputDecoration(
                                         labelText: 'Senha',
+                                        hintText: '••••••••',
                                         prefixIcon: const Icon(Icons.lock_outline, size: 18),
                                         border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
                                         isDense: true,
+                                        contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
                                       ),
                                     ),
                                   ),
@@ -477,13 +371,13 @@ class _ConfigDialogState extends State<ConfigDialog> {
                               ),
                               const SizedBox(height: 12),
 
-                              // Botões de Ação Firebird
+                              // Botões de Ação da Conexão
                               Row(
                                 children: [
                                   Expanded(
                                     child: OutlinedButton.icon(
                                       style: OutlinedButton.styleFrom(
-                                        padding: const EdgeInsets.symmetric(vertical: 9),
+                                        padding: const EdgeInsets.symmetric(vertical: 10),
                                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                                       ),
                                       icon: _isTestando
@@ -493,17 +387,17 @@ class _ConfigDialogState extends State<ConfigDialog> {
                                               child: CircularProgressIndicator(strokeWidth: 2),
                                             )
                                           : const Icon(Icons.network_check_rounded, size: 17),
-                                      label: const Text('Testar Conexão', style: TextStyle(fontSize: 12)),
+                                      label: const Text('Testar Conexão', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
                                       onPressed: (_isTestando || _isImportando) ? null : _testarConexaoFirebird,
                                     ),
                                   ),
-                                  const SizedBox(width: 8),
+                                  const SizedBox(width: 10),
                                   Expanded(
                                     child: ElevatedButton.icon(
                                       style: ElevatedButton.styleFrom(
                                         backgroundColor: const Color(0xFF2E7D32),
                                         foregroundColor: Colors.white,
-                                        padding: const EdgeInsets.symmetric(vertical: 9),
+                                        padding: const EdgeInsets.symmetric(vertical: 10),
                                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                                       ),
                                       icon: _isImportando
@@ -513,18 +407,18 @@ class _ConfigDialogState extends State<ConfigDialog> {
                                               child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
                                             )
                                           : const Icon(Icons.cloud_download_rounded, size: 17),
-                                      label: const Text('Trazer Mesas (75)', style: TextStyle(fontSize: 12)),
+                                      label: const Text('Trazer Mesas (ERP)', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
                                       onPressed: (_isTestando || _isImportando) ? null : _executarImportacaoFirebird,
                                     ),
                                   ),
                                 ],
                               ),
 
+                              // Mensagem de Feedback de Conexão
                               if (_statusMensagem != null) ...[
                                 const SizedBox(height: 10),
                                 Container(
-                                  width: double.infinity,
-                                  padding: const EdgeInsets.all(8),
+                                  padding: const EdgeInsets.all(10),
                                   decoration: BoxDecoration(
                                     color: _statusSucesso ? Colors.green.shade50 : Colors.red.shade50,
                                     borderRadius: BorderRadius.circular(8),
@@ -540,7 +434,7 @@ class _ConfigDialogState extends State<ConfigDialog> {
                                         size: 16,
                                         color: _statusSucesso ? Colors.green.shade800 : Colors.red.shade800,
                                       ),
-                                      const SizedBox(width: 6),
+                                      const SizedBox(width: 8),
                                       Expanded(
                                         child: Text(
                                           _statusMensagem!,
@@ -559,93 +453,96 @@ class _ConfigDialogState extends State<ConfigDialog> {
                           ),
                         ),
 
-                        const SizedBox(height: 16),
+                        const SizedBox(height: 14),
 
-                        // SEÇÃO 3: PARÂMETROS DE TEMPO E LIMITES
-                        const Text(
-                          'Parâmetros de Tolerância e Rotatividade',
-                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
-                        ),
-                        const SizedBox(height: 8),
-                        Row(
-                          children: [
-                            Expanded(
-                              child: TextFormField(
-                                controller: _tempoAlertaController,
-                                keyboardType: TextInputType.number,
-                                decoration: InputDecoration(
-                                  labelText: 'Alerta (minutos)',
-                                  helperText: 'Padrão: 90 min (1h30m)',
-                                  prefixIcon: const Icon(Icons.warning_amber_rounded, color: Colors.amber, size: 18),
-                                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                                  isDense: true,
-                                ),
-                                validator: (val) {
-                                  final num = int.tryParse(val ?? '');
-                                  if (num == null || num <= 0) return 'Informe minutos';
-                                  return null;
-                                },
+                        // SEÇÃO: PARÂMETROS DE TOLERÂNCIA E ROTATIVIDADE
+                        Container(
+                          padding: const EdgeInsets.all(14),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: const Color(0xFFE2E8F0)),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              const Row(
+                                children: [
+                                  Icon(Icons.timer_outlined, color: Color(0xFF0D47A1), size: 19),
+                                  SizedBox(width: 8),
+                                  Text(
+                                    'Parâmetros de Tolerância',
+                                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                                  ),
+                                ],
                               ),
-                            ),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: TextFormField(
-                                controller: _tempoLimiteController,
-                                keyboardType: TextInputType.number,
-                                decoration: InputDecoration(
-                                  labelText: 'Limite Máximo (min)',
-                                  helperText: 'Padrão: 120 min (2h00m)',
-                                  prefixIcon: const Icon(Icons.alarm_on_rounded, color: Colors.red, size: 18),
-                                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                                  isDense: true,
-                                ),
-                                validator: (val) {
-                                  final num = int.tryParse(val ?? '');
-                                  final alerta = int.tryParse(_tempoAlertaController.text);
-                                  if (num == null || num <= 0) return 'Informe minutos';
-                                  if (alerta != null && num <= alerta) {
-                                    return 'Maior que alerta';
-                                  }
-                                  return null;
-                                },
+                              const SizedBox(height: 12),
+
+                              // Tempos de Alerta e Limite
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: TextFormField(
+                                      controller: _tempoAlertaController,
+                                      keyboardType: TextInputType.number,
+                                      decoration: InputDecoration(
+                                        labelText: 'Alerta (minutos)',
+                                        hintText: '90',
+                                        prefixIcon: const Icon(Icons.warning_amber_rounded, color: Colors.amber, size: 18),
+                                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                                        isDense: true,
+                                        contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
+                                      ),
+                                      validator: (val) {
+                                        final num = int.tryParse(val ?? '');
+                                        if (num == null || num <= 0) return 'Informe minutos';
+                                        return null;
+                                      },
+                                    ),
+                                  ),
+                                  const SizedBox(width: 10),
+                                  Expanded(
+                                    child: TextFormField(
+                                      controller: _tempoLimiteController,
+                                      keyboardType: TextInputType.number,
+                                      decoration: InputDecoration(
+                                        labelText: 'Limite Máximo (min)',
+                                        hintText: '120',
+                                        prefixIcon: const Icon(Icons.alarm_on_rounded, color: Colors.red, size: 18),
+                                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                                        isDense: true,
+                                        contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
+                                      ),
+                                      validator: (val) {
+                                        final num = int.tryParse(val ?? '');
+                                        final alerta = int.tryParse(_tempoAlertaController.text);
+                                        if (num == null || num <= 0) return 'Informe minutos';
+                                        if (alerta != null && num <= alerta) {
+                                          return 'Maior que alerta';
+                                        }
+                                        return null;
+                                      },
+                                    ),
+                                  ),
+                                ],
                               ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 8),
-                        Row(
-                          children: [
-                            Expanded(
-                              child: TextFormField(
-                                controller: _totalMesasController,
-                                keyboardType: TextInputType.number,
-                                decoration: InputDecoration(
-                                  labelText: 'Total de Mesas',
-                                  prefixIcon: const Icon(Icons.table_restaurant_rounded, size: 18),
-                                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                                  isDense: true,
-                                ),
-                                validator: (val) {
-                                  final num = int.tryParse(val ?? '');
-                                  if (num == null || num <= 0) return 'Mínimo de 1';
-                                  return null;
-                                },
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: TextFormField(
+                              const SizedBox(height: 10),
+
+                              // Empresa ID (sem campo de quantidade de mesas, pois busca do ERP)
+                              TextFormField(
                                 controller: _empresaIdController,
                                 keyboardType: TextInputType.number,
                                 decoration: InputDecoration(
-                                  labelText: 'ID Empresa (ERP)',
+                                  labelText: 'Código da Empresa no ERP',
+                                  hintText: '1',
                                   prefixIcon: const Icon(Icons.business_rounded, size: 18),
                                   border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
                                   isDense: true,
+                                  contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
                                 ),
                               ),
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
                       ],
                     ),
@@ -653,9 +550,9 @@ class _ConfigDialogState extends State<ConfigDialog> {
                 ),
               ),
 
-              const Divider(height: 16),
+              const Divider(height: 14),
 
-              // Botões inferiores
+              // Botões Inferiores Salvar / Cancelar
               Row(
                 mainAxisAlignment: MainAxisAlignment.end,
                 children: [
@@ -663,11 +560,13 @@ class _ConfigDialogState extends State<ConfigDialog> {
                     onPressed: () => Navigator.of(context).pop(),
                     child: const Text('Cancelar'),
                   ),
-                  const SizedBox(width: 8),
+                  const SizedBox(width: 10),
                   ElevatedButton(
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFF0D47A1),
                       foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                     ),
                     onPressed: () {
                       if (_formKey.currentState!.validate()) {
@@ -676,7 +575,7 @@ class _ConfigDialogState extends State<ConfigDialog> {
                         Navigator.of(context).pop();
                       }
                     },
-                    child: const Text('Salvar Configurações'),
+                    child: const Text('Salvar Configurações', style: TextStyle(fontWeight: FontWeight.bold)),
                   ),
                 ],
               ),
