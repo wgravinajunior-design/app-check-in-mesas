@@ -1,7 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
-import 'package:url_launcher/url_launcher.dart';
+import '../../presentation/widgets/download_update_dialog.dart';
 import '../theme/app_theme.dart';
 
 class AtualizacaoInfo {
@@ -31,7 +31,7 @@ class AtualizacaoInfo {
 class AppUpdateService {
   static const String repositorioOwner = 'wgravinajunior-design';
   static const String repositorioNome = 'app-check-in-mesas';
-  static const String versaoAtualApp = '1.0.9';
+  static const String versaoAtualApp = '1.0.10';
 
   static Future<AtualizacaoInfo> verificarAtualizacao() async {
     final url = Uri.parse(
@@ -195,7 +195,7 @@ class AppUpdateService {
               ),
               const SizedBox(height: 12),
               Text(
-                'Ao tocar em "Baixar Atualização", o download do novo APK será iniciado no seu navegador.',
+                'Ao tocar em "Atualizar Automaticamente", o download do novo APK será exibido com barra de progresso e a instalação iniciará na tela.',
                 style: TextStyle(fontSize: 11, color: Colors.grey.shade600, fontStyle: FontStyle.italic),
               ),
             ],
@@ -211,18 +211,11 @@ class AppUpdateService {
               backgroundColor: AppTheme.corMesaNormal,
               foregroundColor: Colors.white,
             ),
-            icon: const Icon(Icons.download_rounded, size: 18),
-            label: const Text('Baixar Atualização (APK)'),
-            onPressed: () async {
-              if (info.urlDownloadApk != null) {
-                final uri = Uri.parse(info.urlDownloadApk!);
-                if (await canLaunchUrl(uri)) {
-                  await launchUrl(uri, mode: LaunchMode.externalApplication);
-                }
-              }
-              if (ctx.mounted) {
-                Navigator.of(ctx).pop();
-              }
+            icon: const Icon(Icons.system_update_rounded, size: 18),
+            label: const Text('Atualizar Automaticamente'),
+            onPressed: () {
+              Navigator.of(ctx).pop();
+              DownloadUpdateDialog.iniciarAtualizacao(context, info);
             },
           ),
         ],
