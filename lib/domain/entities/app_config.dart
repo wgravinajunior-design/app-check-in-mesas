@@ -13,6 +13,9 @@ class AppConfig extends Equatable {
   final String caminhoBanco;
   final String usuarioBanco;
   final String senhaBanco;
+  final bool permitirTransferirMesas;
+  final bool alertaSonoro;
+  final bool modoEscuro;
 
   const AppConfig({
     this.tempoAlertaMinutos = AppConstants.defaultTempoAlertaMinutos,
@@ -26,6 +29,9 @@ class AppConfig extends Equatable {
     this.caminhoBanco = AppConstants.defaultCaminhoBancoFirebird,
     this.usuarioBanco = AppConstants.defaultUsuarioFirebird,
     this.senhaBanco = AppConstants.defaultSenhaFirebird,
+    this.permitirTransferirMesas = true,
+    this.alertaSonoro = true,
+    this.modoEscuro = false,
   });
 
   /// Monta a string de conexão nativa do Firebird 5.0 (ex.: localhost/3060:C:\...\DADOS.FDB)
@@ -54,6 +60,9 @@ class AppConfig extends Equatable {
     String? caminhoBanco,
     String? usuarioBanco,
     String? senhaBanco,
+    bool? permitirTransferirMesas,
+    bool? alertaSonoro,
+    bool? modoEscuro,
   }) {
     return AppConfig(
       tempoAlertaMinutos: tempoAlertaMinutos ?? this.tempoAlertaMinutos,
@@ -67,6 +76,9 @@ class AppConfig extends Equatable {
       caminhoBanco: caminhoBanco ?? this.caminhoBanco,
       usuarioBanco: usuarioBanco ?? this.usuarioBanco,
       senhaBanco: senhaBanco ?? this.senhaBanco,
+      permitirTransferirMesas: permitirTransferirMesas ?? this.permitirTransferirMesas,
+      alertaSonoro: alertaSonoro ?? this.alertaSonoro,
+      modoEscuro: modoEscuro ?? this.modoEscuro,
     );
   }
 
@@ -83,5 +95,9 @@ class AppConfig extends Equatable {
         caminhoBanco,
         usuarioBanco,
         senhaBanco,
+        permitirTransferirMesas,
+        alertaSonoro,
+        modoEscuro,
       ];
 }
+

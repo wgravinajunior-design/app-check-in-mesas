@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../domain/entities/app_config.dart';
 import '../../../domain/entities/ingresso.dart';
@@ -14,6 +15,8 @@ class MesaCubit extends Cubit<MesaState> {
 
   Timer? _timerTicker;
   AppConfig _config = const AppConfig();
+  final Set<int> _mesasAlertadas = {};
+  final Set<int> _mesasExcedidas = {};
 
   MesaCubit({
     required this.mesaRepository,
@@ -21,6 +24,7 @@ class MesaCubit extends Cubit<MesaState> {
   }) : super(MesaInitial()) {
     _iniciarTimerCronometro();
   }
+
 
   void _iniciarTimerCronometro() {
     _timerTicker?.cancel();
@@ -128,11 +132,29 @@ class MesaCubit extends Cubit<MesaState> {
 
     final List<Mesa> mesasAtualizadas = estadoAtual.mesas.map((mesa) {
       if (!mesa.isOcupada || mesa.ingressoAtual?.dtEntrada == null) {
+        _mesasAlertadas.remove(mesa.id);
+        _mesasExcedidas.remove(mesa.id);
         return mesa;
       }
 
       final Duration novoDecorrido = agora.difference(mesa.ingressoAtual!.dtEntrada!);
       final StatusPermanencia novoStatus = _calcularStatusPermanencia(novoDecorrido);
+
+      if (novoStatus == StatusPermanencia.alertaTolerancia &&
+          !_mesasAlertadas.contains(mesa.id)) {
+        _mesasAlertadas.add(mesa.id);
+        if (_config.alertaSonoro) {
+          HapticFeedback.mediumImpact();
+          SystemSound.play(SystemSoundType.alert);
+        }
+      } else if (novoStatus == StatusPermanencia.limiteExcedido &&
+          !_mesasExcedidas.contains(mesa.id)) {
+        _mesasExcedidas.add(mesa.id);
+        if (_config.alertaSonoro) {
+          HapticFeedback.heavyImpact();
+          SystemSound.play(SystemSoundType.alert);
+        }
+      }
 
       houveMudanca = true;
       return mesa.copyWith(
@@ -236,6 +258,9 @@ class MesaCubit extends Cubit<MesaState> {
         isOcupada: false,
       );
 
+      _mesasAlertadas.remove(mesa.id);
+      _mesasExcedidas.remove(mesa.id);
+
       final List<Mesa> novasMesas = estadoAtual.mesas.map((m) {
         if (m.id == mesa.id) {
           return m.copyWith(
@@ -257,6 +282,81 @@ class MesaCubit extends Cubit<MesaState> {
       await carregarMesas();
     }
   }
+
+  /// Transfere uma permanência ativa de uma mesa para outra mantendo o tempo decorrido
+  Future<void> transferirMesa({
+    required Mesa mesaOrigem,
+    required Mesa mesaDestino,
+    String? motivo,
+  }) async {
+    final estadoAtual = state;
+    if (estadoAtual is! MesaLoaded) return;
+
+    final ingressoAtual = mesaOrigem.ingressoAtual;
+    if (ingressoAtual == null) {
+      emit(const MesaError('Mesa de origem não possui ingresso ativo para transferir.'));
+      return;
+    }
+
+    try {
+      // Transfere o ingresso na base de dados
+      final Ingresso ingressoTransferido = await ingressoRepository.transferirMesa(
+        empresaId: _config.empresaId,
+        ingressoId: ingressoAtual.id,
+        mesaOrigemCodigo: mesaOrigem.codigo,
+        mesaDestinoCodigo: mesaDestino.codigo,
+        motivo: motivo,
+      );
+
+      // Libera a mesa de origem
+      await mesaRepository.atualizarStatusMesa(
+        mesaId: mesaOrigem.id,
+        isOcupada: false,
+      );
+      _mesasAlertadas.remove(mesaOrigem.id);
+      _mesasExcedidas.remove(mesaOrigem.id);
+
+      // Ocupa a mesa de destino
+      await mesaRepository.atualizarStatusMesa(
+        mesaId: mesaDestino.id,
+        isOcupada: true,
+      );
+      if (mesaOrigem.statusPermanencia == StatusPermanencia.alertaTolerancia) {
+        _mesasAlertadas.add(mesaDestino.id);
+      } else if (mesaOrigem.statusPermanencia == StatusPermanencia.limiteExcedido) {
+        _mesasExcedidas.add(mesaDestino.id);
+      }
+
+      final List<Mesa> novasMesas = estadoAtual.mesas.map((m) {
+        if (m.id == mesaOrigem.id) {
+          return m.copyWith(
+            isOcupada: false,
+            clearIngressoAtual: true,
+            tempoDecorrido: Duration.zero,
+            statusPermanencia: StatusPermanencia.livre,
+          );
+        }
+        if (m.id == mesaDestino.id) {
+          return m.copyWith(
+            isOcupada: true,
+            ingressoAtual: ingressoTransferido,
+            tempoDecorrido: mesaOrigem.tempoDecorrido,
+            statusPermanencia: mesaOrigem.statusPermanencia,
+          );
+        }
+        return m;
+      }).toList();
+
+      emit(MesaLoaded(
+        mesas: novasMesas,
+        ultimoTick: DateTime.now(),
+      ));
+    } catch (e) {
+      emit(MesaError('Erro ao transferir permanência de mesa: ${e.toString()}'));
+      await carregarMesas();
+    }
+  }
+
 
   @override
   Future<void> close() {

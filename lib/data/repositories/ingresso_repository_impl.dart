@@ -123,4 +123,34 @@ class IngressoRepositoryImpl implements IngressoRepository {
       empresaId: empresaId,
     );
   }
+
+  @override
+  Future<Ingresso> transferirMesa({
+    required int empresaId,
+    required int ingressoId,
+    required String mesaOrigemCodigo,
+    required String mesaDestinoCodigo,
+    String? motivo,
+  }) async {
+    final List<IngressoModel> historico = await localDataSource.listarHistorico(
+      empresaId: empresaId,
+    );
+
+    final ingressoExistente = historico.firstWhere(
+      (ing) => ing.id == ingressoId,
+      orElse: () => throw Exception('Ingresso #$ingressoId não localizado para transferência.'),
+    );
+
+    final String notaTransferencia =
+        ' | Transf. da Mesa $mesaOrigemCodigo para Mesa $mesaDestinoCodigo às ${TimeFormatter.formatDateTime(DateTime.now())}${motivo != null && motivo.trim().isNotEmpty ? ' ($motivo)' : ''}';
+
+    final ingressoAtualizado = ingressoExistente.copyWith(
+      codigoMesa: mesaDestinoCodigo,
+      observacao: '${ingressoExistente.observacao ?? ''}$notaTransferencia',
+    );
+
+    await localDataSource.atualizar(IngressoModel.fromEntity(ingressoAtualizado));
+    return ingressoAtualizado;
+  }
 }
+

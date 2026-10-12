@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../core/services/app_update_service.dart';
 import '../../core/theme/app_theme.dart';
+import '../../core/utils/time_formatter.dart';
 import '../../domain/entities/app_config.dart';
 import '../../domain/entities/mesa.dart';
 import '../../domain/entities/status_permanencia.dart';
@@ -14,7 +15,9 @@ import '../widgets/check_in_dialog.dart';
 import '../widgets/check_out_dialog.dart';
 import '../widgets/config_dialog.dart';
 import '../widgets/mesa_card_widget.dart';
+import '../widgets/metricas_salao_dialog.dart';
 import '../widgets/stats_summary_widget.dart';
+import '../widgets/transferir_mesa_dialog.dart';
 import 'historico_ingressos_screen.dart';
 
 class MesaGridScreen extends StatefulWidget {
@@ -31,6 +34,8 @@ class MesaGridScreen extends StatefulWidget {
 
 class _MesaGridScreenState extends State<MesaGridScreen> {
   String _filtroAtivo = 'TODAS';
+  final TextEditingController _buscaController = TextEditingController();
+  String _termoBusca = '';
 
   @override
   void initState() {
@@ -38,6 +43,12 @@ class _MesaGridScreenState extends State<MesaGridScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _checarAtualizacao(silencioso: true);
     });
+  }
+
+  @override
+  void dispose() {
+    _buscaController.dispose();
+    super.dispose();
   }
 
   Future<void> _checarAtualizacao({bool silencioso = false}) async {
@@ -85,22 +96,68 @@ class _MesaGridScreenState extends State<MesaGridScreen> {
             ],
           ),
           actions: [
+            // Botão de Alternar Modo Escuro / Claro
+            BlocBuilder<ConfigCubit, ConfigState>(
+              builder: (context, configState) {
+                final config = configState is ConfigLoaded
+                    ? configState.config
+                    : const AppConfig();
+                return IconButton(
+                  tooltip: config.modoEscuro
+                      ? 'Alternar para Modo Claro'
+                      : 'Alternar para Modo Escuro',
+                  icon: Icon(
+                    config.modoEscuro
+                        ? Icons.light_mode_rounded
+                        : Icons.dark_mode_outlined,
+                    size: 21,
+                  ),
+                  onPressed: () {
+                    final novaConfig =
+                        config.copyWith(modoEscuro: !config.modoEscuro);
+                    context.read<ConfigCubit>().salvarConfiguracoes(novaConfig);
+                  },
+                );
+              },
+            ),
+
+            // Botão de Métricas e Giro do Salão
+            IconButton(
+              tooltip: 'Métricas e Giro do Salão',
+              icon: const Icon(Icons.analytics_outlined, size: 22),
+              onPressed: () {
+                final mesaState = context.read<MesaCubit>().state;
+                if (mesaState is MesaLoaded) {
+                  showDialog(
+                    context: context,
+                    builder: (_) => MetricasSalaoDialog(mesas: mesaState.mesas),
+                  );
+                }
+              },
+            ),
+
+            // Botão de Atualização do APK
             IconButton(
               tooltip: 'Verificar Atualização (APK)',
               icon: const Icon(Icons.system_update_alt_rounded, size: 22),
               onPressed: () => _checarAtualizacao(silencioso: false),
             ),
+
+            // Configurações
             IconButton(
-              tooltip: 'Configurações e Conexão Firebird',
+              tooltip: 'Configurações e Conexão',
               icon: const Icon(Icons.settings_outlined, size: 22),
               onPressed: () => _abrirConfiguracoes(context),
             ),
+
+            // Recarregar
             IconButton(
-              tooltip: 'Recarregar',
+              tooltip: 'Recarregar Mesas',
               icon: const Icon(Icons.refresh_rounded, size: 22),
               onPressed: () {
                 final configState = context.read<ConfigCubit>().state;
-                final config = configState is ConfigLoaded ? configState.config : null;
+                final config =
+                    configState is ConfigLoaded ? configState.config : null;
                 context.read<MesaCubit>().carregarMesas(config: config);
               },
             ),
@@ -150,6 +207,10 @@ class _MesaGridScreenState extends State<MesaGridScreen> {
                       });
                     },
                   ),
+
+                  // Barra de Busca Rápida de Mesas
+                  _buildBarraBusca(),
+
                   const Divider(height: 1, thickness: 1),
                   Expanded(
                     child: mesasFiltradas.isEmpty
@@ -161,7 +222,9 @@ class _MesaGridScreenState extends State<MesaGridScreen> {
                                     size: 44, color: Colors.grey.shade400),
                                 const SizedBox(height: 10),
                                 Text(
-                                  'Nenhuma mesa encontrada para o filtro selecionado.',
+                                  _termoBusca.isNotEmpty
+                                      ? 'Nenhuma mesa encontrada com "$_termoBusca".'
+                                      : 'Nenhuma mesa encontrada para o filtro selecionado.',
                                   style: TextStyle(
                                       color: Colors.grey.shade600, fontSize: 14),
                                 ),
@@ -197,7 +260,8 @@ class _MesaGridScreenState extends State<MesaGridScreen> {
                                   final mesa = mesasFiltradas[index];
                                   return MesaCardWidget(
                                     mesa: mesa,
-                                    onTap: () => _tratarCliqueMesa(context, mesa),
+                                    onTap: () => _tratarCliqueMesa(
+                                        context, mesa, state.mesas),
                                   );
                                 },
                               );
@@ -217,33 +281,84 @@ class _MesaGridScreenState extends State<MesaGridScreen> {
     );
   }
 
+  Widget _buildBarraBusca() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      child: TextField(
+        controller: _buscaController,
+        decoration: InputDecoration(
+          hintText: 'Buscar por número ou identificador da mesa...',
+          prefixIcon: const Icon(Icons.search_rounded, size: 20),
+          suffixIcon: _termoBusca.isNotEmpty
+              ? IconButton(
+                  icon: const Icon(Icons.clear_rounded, size: 18),
+                  onPressed: () {
+                    _buscaController.clear();
+                    setState(() {
+                      _termoBusca = '';
+                    });
+                  },
+                )
+              : null,
+          filled: true,
+          fillColor: Theme.of(context).cardColor,
+          isDense: true,
+          contentPadding:
+              const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(10),
+            borderSide: BorderSide(color: Colors.grey.shade300),
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(10),
+            borderSide: BorderSide(color: Colors.grey.shade300),
+          ),
+        ),
+        onChanged: (val) {
+          setState(() {
+            _termoBusca = val;
+          });
+        },
+      ),
+    );
+  }
+
   List<Mesa> _filtrarMesas(List<Mesa> todas) {
+    List<Mesa> lista = todas;
+    if (_termoBusca.isNotEmpty) {
+      final termo = _termoBusca.toLowerCase().trim();
+      lista = lista.where((m) {
+        return m.codigo.toLowerCase().contains(termo) ||
+            m.nomeExibicao.toLowerCase().contains(termo);
+      }).toList();
+    }
+
     switch (_filtroAtivo) {
       case 'LIVRES':
-        return todas.where((m) => !m.isOcupada).toList();
+        return lista.where((m) => !m.isOcupada).toList();
       case 'NORMAL':
-        return todas
+        return lista
             .where((m) =>
                 m.isOcupada && m.statusPermanencia == StatusPermanencia.normal)
             .toList();
       case 'ALERTA':
-        return todas
+        return lista
             .where((m) =>
                 m.isOcupada &&
                 m.statusPermanencia == StatusPermanencia.alertaTolerancia)
             .toList();
       case 'EXCEDIDAS':
-        return todas
+        return lista
             .where((m) =>
                 m.isOcupada &&
                 m.statusPermanencia == StatusPermanencia.limiteExcedido)
             .toList();
       default:
-        return todas;
+        return lista;
     }
   }
 
-  void _tratarCliqueMesa(BuildContext context, Mesa mesa) {
+  void _tratarCliqueMesa(BuildContext context, Mesa mesa, List<Mesa> todasMesas) {
     if (!mesa.isOcupada) {
       showDialog(
         context: context,
@@ -265,24 +380,170 @@ class _MesaGridScreenState extends State<MesaGridScreen> {
         ),
       );
     } else {
-      showDialog(
-        context: context,
-        builder: (_) => CheckOutDialog(
-          mesa: mesa,
-          onConfirmar: () {
-            context.read<MesaCubit>().realizarCheckOut(mesa: mesa);
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(
-                    'Check-out efetuado! ${mesa.nomeExibicao} liberada e gravada na TB_INGRESSO.'),
-                backgroundColor: const Color(0xFF0F172A),
-                behavior: SnackBarBehavior.floating,
+      final configState = context.read<ConfigCubit>().state;
+      final bool permitirTransferir = configState is ConfigLoaded
+          ? configState.config.permitirTransferirMesas
+          : true;
+
+      if (!permitirTransferir) {
+        _abrirCheckOutDialog(context, mesa);
+      } else {
+        // Exibe opções: Check-out ou Transferir Mesa
+        showModalBottomSheet(
+          context: context,
+          shape: const RoundedRectangleBorder(
+            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+          ),
+          builder: (ctx) {
+            final mesasLivres =
+                todasMesas.where((m) => !m.isOcupada).toList();
+            return SafeArea(
+              child: Padding(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      width: 40,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: Colors.grey.shade300,
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+                    Row(
+                      children: [
+                        CircleAvatar(
+                          backgroundColor:
+                              mesa.statusPermanencia.corPrimaria,
+                          foregroundColor: Colors.white,
+                          child: Text(mesa.codigo,
+                              style: const TextStyle(fontWeight: FontWeight.bold)),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(mesa.nomeExibicao,
+                                  style: const TextStyle(
+                                      fontWeight: FontWeight.bold, fontSize: 16)),
+                              Text(
+                                  'Tempo ativo: ${TimeFormatter.formatDuration(mesa.tempoDecorrido)}',
+                                  style: TextStyle(
+                                      fontSize: 12,
+                                      color:
+                                          mesa.statusPermanencia.corPrimaria,
+                                      fontWeight: FontWeight.w600)),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    ListTile(
+                      leading: Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFFEF2F2),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: const Icon(Icons.logout_rounded,
+                            color: Colors.red),
+                      ),
+                      title: const Text('Realizar Check-out (Encerrar)',
+                          style: TextStyle(
+                              fontWeight: FontWeight.bold, fontSize: 14)),
+                      subtitle: const Text(
+                          'Libera a mesa e salva encerramento em TB_INGRESSO',
+                          style: TextStyle(fontSize: 11)),
+                      trailing: const Icon(Icons.arrow_forward_ios_rounded,
+                          size: 14),
+                      onTap: () {
+                        Navigator.of(ctx).pop();
+                        _abrirCheckOutDialog(context, mesa);
+                      },
+                    ),
+                    const Divider(),
+                    ListTile(
+                      leading: Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFE0F2FE),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: const Icon(Icons.swap_horiz_rounded,
+                            color: Color(0xFF0284C7)),
+                      ),
+                      title: const Text('Transferir para Outra Mesa',
+                          style: TextStyle(
+                              fontWeight: FontWeight.bold, fontSize: 14)),
+                      subtitle: Text(
+                          'Remaneja clientes para mesa livre mantendo o tempo ativo (${mesasLivres.length} livres)',
+                          style: const TextStyle(fontSize: 11)),
+                      trailing: const Icon(Icons.arrow_forward_ios_rounded,
+                          size: 14),
+                      onTap: () {
+                        Navigator.of(ctx).pop();
+                        _abrirTransferirDialog(context, mesa, mesasLivres);
+                      },
+                    ),
+                  ],
+                ),
               ),
             );
           },
-        ),
-      );
+        );
+      }
     }
+  }
+
+  void _abrirCheckOutDialog(BuildContext context, Mesa mesa) {
+    showDialog(
+      context: context,
+      builder: (_) => CheckOutDialog(
+        mesa: mesa,
+        onConfirmar: () {
+          context.read<MesaCubit>().realizarCheckOut(mesa: mesa);
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                  'Check-out efetuado! ${mesa.nomeExibicao} liberada e gravada na TB_INGRESSO.'),
+              backgroundColor: const Color(0xFF0F172A),
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  void _abrirTransferirDialog(
+      BuildContext context, Mesa mesa, List<Mesa> mesasLivres) {
+    showDialog(
+      context: context,
+      builder: (_) => TransferirMesaDialog(
+        mesaOrigem: mesa,
+        mesasLivres: mesasLivres,
+        onConfirmar: (mesaDestino, motivo) {
+          context.read<MesaCubit>().transferirMesa(
+                mesaOrigem: mesa,
+                mesaDestino: mesaDestino,
+                motivo: motivo,
+              );
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                  'Cliente transferido da ${mesa.nomeExibicao} para a ${mesaDestino.nomeExibicao} com sucesso!'),
+              backgroundColor: const Color(0xFF0284C7),
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        },
+      ),
+    );
   }
 
   void _abrirConfiguracoes(BuildContext context) {
@@ -310,13 +571,15 @@ class _MesaGridScreenState extends State<MesaGridScreen> {
           return context.read<MesaCubit>().testarConexaoFirebird(config);
         },
         onImportarMesasFirebird: (config) async {
-          final total = await context.read<MesaCubit>().importarMesasDoFirebird(config);
+          final total =
+              await context.read<MesaCubit>().importarMesasDoFirebird(config);
           final configAtualizada = config.copyWith(totalMesas: total);
           if (context.mounted) {
             context.read<ConfigCubit>().salvarConfiguracoes(configAtualizada);
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
-                content: Text('$total mesas importadas com sucesso da base de dados!'),
+                content: Text(
+                    '$total mesas importadas com sucesso da base de dados!'),
                 backgroundColor: AppTheme.corMesaLivre,
                 behavior: SnackBarBehavior.floating,
               ),

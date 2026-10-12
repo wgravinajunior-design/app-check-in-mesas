@@ -36,4 +36,14 @@ abstract class IngressoRepository {
   Future<List<Ingresso>> listarIngressosAbertos({
     required int empresaId,
   });
+
+  /// Transfere o ingresso de uma mesa de origem para uma mesa de destino mantendo o tempo
+  Future<Ingresso> transferirMesa({
+    required int empresaId,
+    required int ingressoId,
+    required String mesaOrigemCodigo,
+    required String mesaDestinoCodigo,
+    String? motivo,
+  });
 }
+

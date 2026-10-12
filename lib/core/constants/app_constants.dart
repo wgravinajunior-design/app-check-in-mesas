@@ -32,4 +32,7 @@ class AppConstants {
   static const String keyCaminhoBanco = 'config_caminho_banco_firebird';
   static const String keyUsuarioBanco = 'config_usuario_firebird';
   static const String keySenhaBanco = 'config_senha_firebird';
+  static const String keyPermitirTransferirMesas = 'config_permitir_transferir_mesas';
+  static const String keyAlertaSonoro = 'config_alerta_sonoro';
+  static const String keyModoEscuro = 'config_modo_escuro';
 }

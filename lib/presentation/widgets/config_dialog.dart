@@ -35,12 +35,19 @@ class _ConfigDialogState extends State<ConfigDialog> {
   bool _isImportando = false;
   String? _statusMensagem;
   bool _statusSucesso = false;
+  bool _permitirTransferirMesas = true;
+  bool _alertaSonoro = true;
+  bool _modoEscuro = false;
 
   final _formKey = GlobalKey<FormState>();
 
   @override
   void initState() {
     super.initState();
+    _permitirTransferirMesas = widget.configAtual.permitirTransferirMesas;
+    _alertaSonoro = widget.configAtual.alertaSonoro;
+    _modoEscuro = widget.configAtual.modoEscuro;
+
     _tempoAlertaController = TextEditingController(
       text: widget.configAtual.tempoAlertaMinutos.toString(),
     );
@@ -92,6 +99,9 @@ class _ConfigDialogState extends State<ConfigDialog> {
       caminhoBanco: _caminhoBancoController.text.trim(),
       usuarioBanco: _usuarioBancoController.text.trim(),
       senhaBanco: _senhaBancoController.text.trim(),
+      permitirTransferirMesas: _permitirTransferirMesas,
+      alertaSonoro: _alertaSonoro,
+      modoEscuro: _modoEscuro,
     );
   }
 
@@ -540,6 +550,99 @@ class _ConfigDialogState extends State<ConfigDialog> {
                                   isDense: true,
                                   contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
                                 ),
+                              ),
+                            ],
+                          ),
+                        ),
+
+                        const SizedBox(height: 12),
+
+                        // Card 3: Operação do Salão & Preferências
+                        Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF8FAFC),
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(color: const Color(0xFFE2E8F0)),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Row(
+                                children: [
+                                  Icon(Icons.tune_rounded, color: Color(0xFF0F172A), size: 18),
+                                  SizedBox(width: 8),
+                                  Text(
+                                    'Operação do Salão & Preferências',
+                                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 8),
+
+                              // Switch: Permitir Transferir Mesas
+                              SwitchListTile(
+                                contentPadding: EdgeInsets.zero,
+                                dense: true,
+                                secondary: const Icon(Icons.swap_horiz_rounded, color: Color(0xFF0284C7)),
+                                title: const Text(
+                                  'Permitir Transferir Mesas',
+                                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                                ),
+                                subtitle: const Text(
+                                  'Habilita o botão para remanejar clientes entre mesas mantendo o tempo ativo',
+                                  style: TextStyle(fontSize: 11, color: Color(0xFF64748B)),
+                                ),
+                                value: _permitirTransferirMesas,
+                                onChanged: (val) {
+                                  setState(() {
+                                    _permitirTransferirMesas = val;
+                                  });
+                                },
+                              ),
+                              const Divider(height: 8),
+
+                              // Switch: Alerta Sonoro e Vibração
+                              SwitchListTile(
+                                contentPadding: EdgeInsets.zero,
+                                dense: true,
+                                secondary: const Icon(Icons.volume_up_rounded, color: Colors.amber),
+                                title: const Text(
+                                  'Alerta Sonoro e Vibração',
+                                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                                ),
+                                subtitle: const Text(
+                                  'Emite bip e vibração quando mesas atingem tolerância ou limite',
+                                  style: TextStyle(fontSize: 11, color: Color(0xFF64748B)),
+                                ),
+                                value: _alertaSonoro,
+                                onChanged: (val) {
+                                  setState(() {
+                                    _alertaSonoro = val;
+                                  });
+                                },
+                              ),
+                              const Divider(height: 8),
+
+                              // Switch: Modo Escuro
+                              SwitchListTile(
+                                contentPadding: EdgeInsets.zero,
+                                dense: true,
+                                secondary: const Icon(Icons.dark_mode_rounded, color: Color(0xFF6366F1)),
+                                title: const Text(
+                                  'Modo Escuro (Dark Mode)',
+                                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                                ),
+                                subtitle: const Text(
+                                  'Interface escura de alto contraste para ambientes noturnos',
+                                  style: TextStyle(fontSize: 11, color: Color(0xFF64748B)),
+                                ),
+                                value: _modoEscuro,
+                                onChanged: (val) {
+                                  setState(() {
+                                    _modoEscuro = val;
+                                  });
+                                },
                               ),
                             ],
                           ),

@@ -29,6 +29,12 @@ class ConfigRepositoryImpl implements ConfigRepository {
         AppConstants.defaultUsuarioFirebird;
     final String senhaBanco = prefs.getString(AppConstants.keySenhaBanco) ??
         AppConstants.defaultSenhaFirebird;
+    final bool permitirTransferirMesas =
+        prefs.getBool(AppConstants.keyPermitirTransferirMesas) ?? true;
+    final bool alertaSonoro =
+        prefs.getBool(AppConstants.keyAlertaSonoro) ?? true;
+    final bool modoEscuro =
+        prefs.getBool(AppConstants.keyModoEscuro) ?? false;
 
     return AppConfig(
       tempoAlertaMinutos: tempoAlerta,
@@ -42,6 +48,9 @@ class ConfigRepositoryImpl implements ConfigRepository {
       caminhoBanco: caminhoBanco,
       usuarioBanco: usuarioBanco,
       senhaBanco: senhaBanco,
+      permitirTransferirMesas: permitirTransferirMesas,
+      alertaSonoro: alertaSonoro,
+      modoEscuro: modoEscuro,
     );
   }
 
@@ -60,5 +69,9 @@ class ConfigRepositoryImpl implements ConfigRepository {
     await prefs.setString(AppConstants.keyCaminhoBanco, config.caminhoBanco);
     await prefs.setString(AppConstants.keyUsuarioBanco, config.usuarioBanco);
     await prefs.setString(AppConstants.keySenhaBanco, config.senhaBanco);
+    await prefs.setBool(
+        AppConstants.keyPermitirTransferirMesas, config.permitirTransferirMesas);
+    await prefs.setBool(AppConstants.keyAlertaSonoro, config.alertaSonoro);
+    await prefs.setBool(AppConstants.keyModoEscuro, config.modoEscuro);
   }
 }

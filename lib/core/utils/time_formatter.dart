@@ -42,6 +42,12 @@ class TimeFormatter {
     return '$hoursStr:$minutesStr:$secondsStr';
   }
 
+  /// Alias de formatação de duração
+  static String formatDuration(Duration duration) {
+    return formatCronometro(duration);
+  }
+
+
   /// Formata a duração em texto legível como "1h 45m" ou "32 min"
   static String formatDuracaoAmigavel(Duration duration) {
     final int hours = duration.inHours;

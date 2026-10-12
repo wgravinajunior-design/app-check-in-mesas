@@ -11,6 +11,7 @@ import 'domain/repositories/config_repository.dart';
 import 'domain/repositories/ingresso_repository.dart';
 import 'domain/repositories/mesa_repository.dart';
 import 'presentation/cubits/config/config_cubit.dart';
+import 'presentation/cubits/config/config_state.dart';
 import 'presentation/cubits/mesa/mesa_cubit.dart';
 import 'presentation/screens/mesa_grid_screen.dart';
 
@@ -72,16 +73,23 @@ class AppCheckInPermanencia extends StatelessWidget {
           },
         ),
       ],
-      child: MaterialApp(
-        title: 'Gestão de Permanência de Mesas',
-        debugShowCheckedModeBanner: false,
-        theme: AppTheme.lightTheme,
-        darkTheme: AppTheme.darkTheme,
-        themeMode: ThemeMode.light,
-        home: MesaGridScreen(
-          ingressoRepository: ingressoRepository,
-        ),
+      child: BlocBuilder<ConfigCubit, ConfigState>(
+        builder: (context, state) {
+          final bool modoEscuro = state is ConfigLoaded ? state.config.modoEscuro : false;
+
+          return MaterialApp(
+            title: 'Gestão de Permanência de Mesas',
+            debugShowCheckedModeBanner: false,
+            theme: AppTheme.lightTheme,
+            darkTheme: AppTheme.darkTheme,
+            themeMode: modoEscuro ? ThemeMode.dark : ThemeMode.light,
+            home: MesaGridScreen(
+              ingressoRepository: ingressoRepository,
+            ),
+          );
+        },
       ),
     );
   }
 }
+

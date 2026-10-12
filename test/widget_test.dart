@@ -40,5 +40,28 @@ void main() {
         equals(r'192.168.0.109/3060:C:\Users\Walter\OneDrive\DADOS\MANSAO\DADOS.FDB'),
       );
     });
+
+    test('AppConfig deve inicializar e permitir alternar permissões e modo escuro', () {
+      const configPadrao = AppConfig();
+      expect(configPadrao.permitirTransferirMesas, isTrue);
+      expect(configPadrao.alertaSonoro, isTrue);
+      expect(configPadrao.modoEscuro, isFalse);
+
+      final configModificada = configPadrao.copyWith(
+        permitirTransferirMesas: false,
+        alertaSonoro: false,
+        modoEscuro: true,
+      );
+      expect(configModificada.permitirTransferirMesas, isFalse);
+      expect(configModificada.alertaSonoro, isFalse);
+      expect(configModificada.modoEscuro, isTrue);
+    });
+
+    test('TimeFormatter formatDuration e formatDuracaoAmigavel devem formatar corretamente', () {
+      const duracao = Duration(hours: 2, minutes: 15, seconds: 30);
+      expect(TimeFormatter.formatDuration(duracao), equals('02:15:30'));
+      expect(TimeFormatter.formatDuracaoAmigavel(duracao), equals('2h 15m'));
+    });
   });
 }
+

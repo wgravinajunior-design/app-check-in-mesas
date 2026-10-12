@@ -1,4 +1,8 @@
+import 'dart:convert';
+import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:path_provider/path_provider.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/utils/time_formatter.dart';
 import '../../domain/entities/ingresso.dart';
@@ -48,6 +52,99 @@ class _HistoricoIngressosScreenState extends State<HistoricoIngressosScreen> {
     }
   }
 
+  Future<void> _exportarCsv() async {
+    if (_lista.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Nenhum registro para exportar.'),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
+
+    try {
+      final StringBuffer csv = StringBuffer();
+      // Cabeçalho compatível com Excel brasileiro
+      csv.writeln('ID;EMPRESA;CODIGO_MESA;STATUS;DATA_ENTRADA;DATA_SAIDA;DURACAO_MINUTOS;OBSERVACAO');
+
+      for (final item in _lista) {
+        final id = item.id;
+        final empresa = item.empresaId;
+        final mesa = item.codigoMesa;
+        final status = item.status == 'A' ? 'Aberto' : 'Finalizado';
+        final entrada = item.dtEntrada != null ? TimeFormatter.formatDateTime(item.dtEntrada) : '';
+        final saida = item.dtSaida != null ? TimeFormatter.formatDateTime(item.dtSaida) : '';
+        final duracao = item.duracaoMinutos ?? 0;
+        final obs = (item.observacao ?? '').replaceAll(';', ',').replaceAll('\n', ' ');
+
+        csv.writeln('$id;$empresa;$mesa;$status;$entrada;$saida;$duracao;"$obs"');
+      }
+
+      final directory = await getApplicationDocumentsDirectory();
+      final String timestamp = DateTime.now().toIso8601String().replaceAll(':', '-');
+      final String caminhoArquivo = '${directory.path}/TB_INGRESSO_${widget.empresaId}_$timestamp.csv';
+      final file = File(caminhoArquivo);
+      await file.writeAsString(csv.toString(), encoding: utf8);
+
+      if (mounted) {
+        showDialog(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            title: const Row(
+              children: [
+                Icon(Icons.check_circle_rounded, color: Colors.green),
+                SizedBox(width: 8),
+                Text('Relatório CSV Gerado!'),
+              ],
+            ),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '${_lista.length} registros exportados com sucesso no padrão do ERP (TB_INGRESSO).',
+                  style: const TextStyle(fontSize: 13),
+                ),
+                const SizedBox(height: 12),
+                const Text(
+                  'Local do arquivo:',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+                ),
+                const SizedBox(height: 4),
+                SelectableText(
+                  caminhoArquivo,
+                  style: const TextStyle(fontSize: 11, color: Colors.blueGrey),
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  Clipboard.setData(ClipboardData(text: caminhoArquivo));
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Caminho copiado para a área de transferência!')),
+                  );
+                },
+                child: const Text('Copiar Caminho'),
+              ),
+              ElevatedButton(
+                onPressed: () => Navigator.of(ctx).pop(),
+                child: const Text('OK'),
+              ),
+            ],
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Erro ao exportar CSV: $e')),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -55,12 +152,18 @@ class _HistoricoIngressosScreenState extends State<HistoricoIngressosScreen> {
         title: const Text('Auditoria - TB_INGRESSO'),
         actions: [
           IconButton(
+            tooltip: 'Exportar CSV (Excel)',
+            icon: const Icon(Icons.file_download_outlined),
+            onPressed: _exportarCsv,
+          ),
+          IconButton(
             tooltip: 'Atualizar',
             icon: const Icon(Icons.refresh_rounded),
             onPressed: _carregarHistorico,
           ),
         ],
       ),
+
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : _lista.isEmpty
