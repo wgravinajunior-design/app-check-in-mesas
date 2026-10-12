@@ -98,30 +98,72 @@ class _MesaGridScreenState extends State<MesaGridScreen> {
           final config = configState is ConfigLoaded
               ? configState.config
               : const AppConfig();
+          final bool sincronizarMesas = config.sincronizarMesas;
           final bool sincronizarComandas = config.sincronizarComandas;
+          final bool mostrarAmbasAbas = sincronizarMesas && sincronizarComandas;
+
+          Widget bodyContent;
+          if (mostrarAmbasAbas) {
+            bodyContent = TabBarView(
+              children: [
+                _buildMesasView(),
+                const ComandaTabView(),
+              ],
+            );
+          } else if (sincronizarMesas) {
+            bodyContent = _buildMesasView();
+          } else if (sincronizarComandas) {
+            bodyContent = const ComandaTabView();
+          } else {
+            bodyContent = Center(
+              child: Padding(
+                padding: const EdgeInsets.all(24.0),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.sync_disabled_rounded, size: 64, color: Colors.blueGrey),
+                    const SizedBox(height: 16),
+                    const Text(
+                      'Nenhum módulo selecionado',
+                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                    ),
+                    const SizedBox(height: 8),
+                    const Text(
+                      'Habilite "Sincronizar Mesas" ou "Sincronizar Comandas" nas configurações para monitorar o salão.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(color: Colors.blueGrey),
+                    ),
+                    const SizedBox(height: 16),
+                    ElevatedButton.icon(
+                      onPressed: () => _abrirConfiguracoes(context),
+                      icon: const Icon(Icons.settings_rounded),
+                      label: const Text('Abrir Configurações'),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          }
 
           final Widget scaffoldContent = Scaffold(
             appBar: AppBar(
-              titleSpacing: 14,
+              titleSpacing: 8,
               title: const Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(Icons.restaurant_rounded, size: 22, color: Colors.amber),
-                  SizedBox(width: 8),
-                  Flexible(
-                    child: Text(
-                      'CheckMesa',
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        fontSize: 19,
-                        fontWeight: FontWeight.bold,
-                        letterSpacing: 0.5,
-                      ),
+                  Icon(Icons.restaurant_rounded, size: 20, color: Colors.amber),
+                  SizedBox(width: 6),
+                  Text(
+                    'CheckMesa',
+                    style: TextStyle(
+                      fontSize: 17,
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: 0.3,
                     ),
                   ),
                 ],
               ),
-              bottom: sincronizarComandas
+              bottom: mostrarAmbasAbas
                   ? const TabBar(
                       indicatorColor: Colors.amber,
                       indicatorWeight: 3,
@@ -129,11 +171,11 @@ class _MesaGridScreenState extends State<MesaGridScreen> {
                       unselectedLabelColor: Colors.white70,
                       tabs: [
                         Tab(
-                          icon: Icon(Icons.table_restaurant_rounded, size: 20),
+                          icon: Icon(Icons.table_restaurant_rounded, size: 19),
                           text: 'Mesas',
                         ),
                         Tab(
-                          icon: Icon(Icons.receipt_long_rounded, size: 20),
+                          icon: Icon(Icons.receipt_long_rounded, size: 19),
                           text: 'Comandas',
                         ),
                       ],
@@ -142,14 +184,17 @@ class _MesaGridScreenState extends State<MesaGridScreen> {
               actions: [
                 // Alternar Modo Escuro
                 IconButton(
+                  visualDensity: VisualDensity.compact,
+                  padding: const EdgeInsets.symmetric(horizontal: 2),
+                  constraints: const BoxConstraints(minWidth: 34, minHeight: 34),
                   tooltip: config.modoEscuro
                       ? 'Alternar para Modo Claro'
                       : 'Alternar para Modo Escuro',
                   icon: Icon(
                     config.modoEscuro
-                        ? Icons.light_mode_rounded
-                        : Icons.dark_mode_outlined,
-                    size: 21,
+                      ? Icons.light_mode_rounded
+                      : Icons.dark_mode_outlined,
+                    size: 20,
                   ),
                   onPressed: () {
                     final novaConfig =
@@ -160,8 +205,11 @@ class _MesaGridScreenState extends State<MesaGridScreen> {
 
                 // Métricas do Salão
                 IconButton(
+                  visualDensity: VisualDensity.compact,
+                  padding: const EdgeInsets.symmetric(horizontal: 2),
+                  constraints: const BoxConstraints(minWidth: 34, minHeight: 34),
                   tooltip: 'Métricas e Giro do Salão',
-                  icon: const Icon(Icons.analytics_outlined, size: 22),
+                  icon: const Icon(Icons.analytics_outlined, size: 20),
                   onPressed: () {
                     final mesaState = context.read<MesaCubit>().state;
                     if (mesaState is MesaLoaded) {
@@ -175,24 +223,35 @@ class _MesaGridScreenState extends State<MesaGridScreen> {
 
                 // Verificar Atualização
                 IconButton(
+                  visualDensity: VisualDensity.compact,
+                  padding: const EdgeInsets.symmetric(horizontal: 2),
+                  constraints: const BoxConstraints(minWidth: 34, minHeight: 34),
                   tooltip: 'Verificar Atualização (APK)',
-                  icon: const Icon(Icons.system_update_alt_rounded, size: 22),
+                  icon: const Icon(Icons.system_update_alt_rounded, size: 20),
                   onPressed: () => _checarAtualizacao(silencioso: false),
                 ),
 
                 // Configurações
                 IconButton(
+                  visualDensity: VisualDensity.compact,
+                  padding: const EdgeInsets.symmetric(horizontal: 2),
+                  constraints: const BoxConstraints(minWidth: 34, minHeight: 34),
                   tooltip: 'Configurações e Conexão',
-                  icon: const Icon(Icons.settings_outlined, size: 22),
+                  icon: const Icon(Icons.settings_outlined, size: 20),
                   onPressed: () => _abrirConfiguracoes(context),
                 ),
 
                 // Recarregar
                 IconButton(
+                  visualDensity: VisualDensity.compact,
+                  padding: const EdgeInsets.symmetric(horizontal: 2),
+                  constraints: const BoxConstraints(minWidth: 34, minHeight: 34),
                   tooltip: 'Recarregar Dados',
-                  icon: const Icon(Icons.refresh_rounded, size: 22),
+                  icon: const Icon(Icons.refresh_rounded, size: 20),
                   onPressed: () {
-                    context.read<MesaCubit>().carregarMesas(config: config);
+                    if (sincronizarMesas) {
+                      context.read<MesaCubit>().carregarMesas(config: config);
+                    }
                     if (sincronizarComandas) {
                       context.read<ComandaCubit>().carregarComandas(config: config);
                     }
@@ -201,17 +260,10 @@ class _MesaGridScreenState extends State<MesaGridScreen> {
                 const SizedBox(width: 4),
               ],
             ),
-            body: sincronizarComandas
-                ? TabBarView(
-                    children: [
-                      _buildMesasView(),
-                      const ComandaTabView(),
-                    ],
-                  )
-                : _buildMesasView(),
+            body: bodyContent,
           );
 
-          if (sincronizarComandas) {
+          if (mostrarAmbasAbas) {
             return DefaultTabController(
               length: 2,
               child: scaffoldContent,

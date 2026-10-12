@@ -16,6 +16,7 @@ class AppConfig extends Equatable {
   final bool permitirTransferirMesas;
   final bool alertaSonoro;
   final bool modoEscuro;
+  final bool sincronizarMesas;
   final bool sincronizarComandas;
   final int totalComandas;
 
@@ -34,7 +35,8 @@ class AppConfig extends Equatable {
     this.permitirTransferirMesas = true,
     this.alertaSonoro = true,
     this.modoEscuro = false,
-    this.sincronizarComandas = true,
+    this.sincronizarMesas = true,
+    this.sincronizarComandas = false,
     this.totalComandas = AppConstants.defaultTotalComandas,
   });
 
@@ -67,6 +69,7 @@ class AppConfig extends Equatable {
     bool? permitirTransferirMesas,
     bool? alertaSonoro,
     bool? modoEscuro,
+    bool? sincronizarMesas,
     bool? sincronizarComandas,
     int? totalComandas,
   }) {
@@ -85,6 +88,7 @@ class AppConfig extends Equatable {
       permitirTransferirMesas: permitirTransferirMesas ?? this.permitirTransferirMesas,
       alertaSonoro: alertaSonoro ?? this.alertaSonoro,
       modoEscuro: modoEscuro ?? this.modoEscuro,
+      sincronizarMesas: sincronizarMesas ?? this.sincronizarMesas,
       sincronizarComandas: sincronizarComandas ?? this.sincronizarComandas,
       totalComandas: totalComandas ?? this.totalComandas,
     );
@@ -106,6 +110,7 @@ class AppConfig extends Equatable {
         permitirTransferirMesas,
         alertaSonoro,
         modoEscuro,
+        sincronizarMesas,
         sincronizarComandas,
         totalComandas,
       ];

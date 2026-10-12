@@ -64,17 +64,20 @@ void main() {
       expect(TimeFormatter.formatDuracaoAmigavel(duracao), equals('2h 15m'));
     });
 
-    test('AppConfig deve suportar sincronizarComandas e totalComandas', () {
+    test('AppConfig deve suportar sincronizarMesas e sincronizarComandas com padroes corretos', () {
       const configPadrao = AppConfig();
-      expect(configPadrao.sincronizarComandas, isTrue);
+      expect(configPadrao.sincronizarMesas, isTrue);
+      expect(configPadrao.sincronizarComandas, isFalse);
       expect(configPadrao.totalComandas, equals(50));
 
-      final configSemComandas = configPadrao.copyWith(
-        sincronizarComandas: false,
+      final configModificada = configPadrao.copyWith(
+        sincronizarMesas: false,
+        sincronizarComandas: true,
         totalComandas: 100,
       );
-      expect(configSemComandas.sincronizarComandas, isFalse);
-      expect(configSemComandas.totalComandas, equals(100));
+      expect(configModificada.sincronizarMesas, isFalse);
+      expect(configModificada.sincronizarComandas, isTrue);
+      expect(configModificada.totalComandas, equals(100));
     });
 
     test('Entidade Comanda deve suportar campos e transicoes de status', () {

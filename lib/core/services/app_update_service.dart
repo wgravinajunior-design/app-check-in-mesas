@@ -31,7 +31,7 @@ class AtualizacaoInfo {
 class AppUpdateService {
   static const String repositorioOwner = 'wgravinajunior-design';
   static const String repositorioNome = 'app-check-in-mesas';
-  static const String versaoAtualApp = '1.0.7';
+  static const String versaoAtualApp = '1.0.8';
 
   static Future<AtualizacaoInfo> verificarAtualizacao() async {
     final url = Uri.parse(
@@ -92,6 +92,16 @@ class AppUpdateService {
         );
       }
     } catch (e) {
+      String msgAmigavel = 'Falha ao conectar com o servidor de atualizações.';
+      final strErro = e.toString();
+      if (strErro.contains('SocketException') ||
+          strErro.contains('Failed host lookup') ||
+          strErro.contains('errno = 7')) {
+        msgAmigavel = 'Sem conexão com a internet ou servidor inacessível. Verifique sua rede.';
+      } else if (strErro.contains('TimeoutException')) {
+        msgAmigavel = 'Tempo limite de resposta excedido ao consultar atualizações.';
+      }
+
       return AtualizacaoInfo(
         temAtualizacao: false,
         versaoAtual: versaoAtualApp,
@@ -99,7 +109,7 @@ class AppUpdateService {
         tituloRelease: '',
         notasMelhorias: '',
         erroConexao: true,
-        mensagemErro: 'Falha de conexão com a internet ou servidor: $e',
+        mensagemErro: msgAmigavel,
       );
     }
   }
