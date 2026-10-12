@@ -12,6 +12,8 @@ class AtualizacaoInfo {
   final String notasMelhorias;
   final String? urlDownloadApk;
   final String? urlReleaseHtml;
+  final bool erroConexao;
+  final String? mensagemErro;
 
   const AtualizacaoInfo({
     required this.temAtualizacao,
@@ -21,17 +23,19 @@ class AtualizacaoInfo {
     required this.notasMelhorias,
     this.urlDownloadApk,
     this.urlReleaseHtml,
+    this.erroConexao = false,
+    this.mensagemErro,
   });
 }
 
 class AppUpdateService {
   static const String repositorioOwner = 'wgravinajunior-design';
   static const String repositorioNome = 'app-check-in-mesas';
-  static const String versaoAtualApp = '1.0.6';
+  static const String versaoAtualApp = '1.0.7';
 
   static Future<AtualizacaoInfo> verificarAtualizacao() async {
     final url = Uri.parse(
-      'https://api.github.com/repos/$repositorioOwner/$repositorioNome/releases/latest',
+      'https://api.github.com/repos/$repositorioOwner/$repositorioNome/releases/latest?t=${DateTime.now().millisecondsSinceEpoch}',
     );
 
     try {
@@ -39,12 +43,16 @@ class AppUpdateService {
         url,
         headers: {
           'Accept': 'application/vnd.github.v3+json',
+          'User-Agent': 'CheckMesa-App/$versaoAtualApp',
+          'Cache-Control': 'no-cache',
+          'Pragma': 'no-cache',
         },
-      ).timeout(const Duration(seconds: 8));
+      ).timeout(const Duration(seconds: 10));
 
       if (response.statusCode == 200) {
         final Map<String, dynamic> data = jsonDecode(response.body);
-        final String tagName = (data['tag_name'] as String? ?? '').replaceAll('v', '').trim();
+        final String rawTag = data['tag_name'] as String? ?? '';
+        final String tagName = rawTag.replaceAll(RegExp(r'[^0-9.]'), '').trim();
         final String titulo = data['name'] as String? ?? 'Atualização Disponível';
         final String body = data['body'] as String? ?? 'Melhorias de desempenho e correções gerais.';
         final String htmlUrl = data['html_url'] as String? ?? '';
@@ -66,31 +74,44 @@ class AppUpdateService {
         return AtualizacaoInfo(
           temAtualizacao: precisaAtualizar,
           versaoAtual: versaoAtualApp,
-          versaoRemota: tagName,
+          versaoRemota: tagName.isNotEmpty ? tagName : rawTag,
           tituloRelease: titulo,
           notasMelhorias: body,
           urlDownloadApk: downloadApk ?? htmlUrl,
           urlReleaseHtml: htmlUrl,
         );
+      } else {
+        return AtualizacaoInfo(
+          temAtualizacao: false,
+          versaoAtual: versaoAtualApp,
+          versaoRemota: versaoAtualApp,
+          tituloRelease: '',
+          notasMelhorias: '',
+          erroConexao: true,
+          mensagemErro: 'Resposta do servidor GitHub: HTTP ${response.statusCode}',
+        );
       }
-    } catch (_) {
-      // Ignora falhas de conexão para manter funcionamento offline
+    } catch (e) {
+      return AtualizacaoInfo(
+        temAtualizacao: false,
+        versaoAtual: versaoAtualApp,
+        versaoRemota: versaoAtualApp,
+        tituloRelease: '',
+        notasMelhorias: '',
+        erroConexao: true,
+        mensagemErro: 'Falha de conexão com a internet ou servidor: $e',
+      );
     }
-
-    return const AtualizacaoInfo(
-      temAtualizacao: false,
-      versaoAtual: versaoAtualApp,
-      versaoRemota: versaoAtualApp,
-      tituloRelease: '',
-      notasMelhorias: '',
-    );
   }
 
   /// Retorna true se a versão remota for maior que a local
   static bool _compararVersoes(String remota, String local) {
     if (remota.isEmpty) return false;
-    final partesRemota = remota.split('.').map((e) => int.tryParse(e) ?? 0).toList();
-    final partesLocal = local.split('.').map((e) => int.tryParse(e) ?? 0).toList();
+    final remotaLimpa = remota.replaceAll(RegExp(r'[^0-9.]'), '');
+    final localLimpa = local.replaceAll(RegExp(r'[^0-9.]'), '');
+
+    final partesRemota = remotaLimpa.split('.').map((e) => int.tryParse(e) ?? 0).toList();
+    final partesLocal = localLimpa.split('.').map((e) => int.tryParse(e) ?? 0).toList();
 
     for (int i = 0; i < 3; i++) {
       final int numRemoto = i < partesRemota.length ? partesRemota[i] : 0;
@@ -101,6 +122,7 @@ class AppUpdateService {
     }
     return false;
   }
+
 
   /// Exibe diálogo modal com as notas de melhoria e botão para download do APK
   static void exibirDialogAtualizacao(BuildContext context, AtualizacaoInfo info) {

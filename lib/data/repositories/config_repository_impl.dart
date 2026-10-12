@@ -35,6 +35,10 @@ class ConfigRepositoryImpl implements ConfigRepository {
         prefs.getBool(AppConstants.keyAlertaSonoro) ?? true;
     final bool modoEscuro =
         prefs.getBool(AppConstants.keyModoEscuro) ?? false;
+    final bool sincronizarComandas =
+        prefs.getBool(AppConstants.keySincronizarComandas) ?? true;
+    final int totalComandas =
+        prefs.getInt(AppConstants.keyTotalComandas) ?? AppConstants.defaultTotalComandas;
 
     return AppConfig(
       tempoAlertaMinutos: tempoAlerta,
@@ -51,6 +55,8 @@ class ConfigRepositoryImpl implements ConfigRepository {
       permitirTransferirMesas: permitirTransferirMesas,
       alertaSonoro: alertaSonoro,
       modoEscuro: modoEscuro,
+      sincronizarComandas: sincronizarComandas,
+      totalComandas: totalComandas,
     );
   }
 
@@ -73,5 +79,9 @@ class ConfigRepositoryImpl implements ConfigRepository {
         AppConstants.keyPermitirTransferirMesas, config.permitirTransferirMesas);
     await prefs.setBool(AppConstants.keyAlertaSonoro, config.alertaSonoro);
     await prefs.setBool(AppConstants.keyModoEscuro, config.modoEscuro);
+    await prefs.setBool(
+        AppConstants.keySincronizarComandas, config.sincronizarComandas);
+    await prefs.setInt(AppConstants.keyTotalComandas, config.totalComandas);
   }
 }
+

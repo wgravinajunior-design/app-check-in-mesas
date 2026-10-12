@@ -7,12 +7,14 @@ import '../../domain/entities/app_config.dart';
 import '../../domain/entities/mesa.dart';
 import '../../domain/entities/status_permanencia.dart';
 import '../../domain/repositories/ingresso_repository.dart';
+import '../cubits/comanda/comanda_cubit.dart';
 import '../cubits/config/config_cubit.dart';
 import '../cubits/config/config_state.dart';
 import '../cubits/mesa/mesa_cubit.dart';
 import '../cubits/mesa/mesa_state.dart';
 import '../widgets/check_in_dialog.dart';
 import '../widgets/check_out_dialog.dart';
+import '../widgets/comanda_tab_view.dart';
 import '../widgets/config_dialog.dart';
 import '../widgets/mesa_card_widget.dart';
 import '../widgets/metricas_salao_dialog.dart';
@@ -57,11 +59,26 @@ class _MesaGridScreenState extends State<MesaGridScreen> {
 
     if (info.temAtualizacao) {
       AppUpdateService.exibirDialogAtualizacao(context, info);
+    } else if (info.erroConexao && !silencioso) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Falha ao checar atualizações: ${info.mensagemErro ?? "Erro de conexão"}'),
+          backgroundColor: Colors.orange.shade900,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
     } else if (!silencioso) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Seu aplicativo já está na versão mais recente!'),
+        SnackBar(
+          content: Text('CheckMesa já está na versão mais recente (v${info.versaoAtual})!'),
           behavior: SnackBarBehavior.floating,
+          action: SnackBarAction(
+            label: 'BAIXAR APK',
+            textColor: Colors.amber,
+            onPressed: () {
+              AppUpdateService.exibirDialogAtualizacao(context, info);
+            },
+          ),
         ),
       );
     }
@@ -73,36 +90,58 @@ class _MesaGridScreenState extends State<MesaGridScreen> {
       listener: (context, state) {
         if (state is ConfigLoaded) {
           context.read<MesaCubit>().definirConfiguracao(state.config);
+          context.read<ComandaCubit>().definirConfiguracao(state.config);
         }
       },
-      child: Scaffold(
-        appBar: AppBar(
-          titleSpacing: 14,
-          title: const Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(Icons.restaurant_rounded, size: 20),
-              SizedBox(width: 8),
-              Flexible(
-                child: Text(
-                  'Gestão de Mesas',
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontSize: 17,
-                    fontWeight: FontWeight.bold,
+      child: BlocBuilder<ConfigCubit, ConfigState>(
+        builder: (context, configState) {
+          final config = configState is ConfigLoaded
+              ? configState.config
+              : const AppConfig();
+          final bool sincronizarComandas = config.sincronizarComandas;
+
+          final Widget scaffoldContent = Scaffold(
+            appBar: AppBar(
+              titleSpacing: 14,
+              title: const Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.restaurant_rounded, size: 22, color: Colors.amber),
+                  SizedBox(width: 8),
+                  Flexible(
+                    child: Text(
+                      'CheckMesa',
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 19,
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: 0.5,
+                      ),
+                    ),
                   ),
-                ),
+                ],
               ),
-            ],
-          ),
-          actions: [
-            // Botão de Alternar Modo Escuro / Claro
-            BlocBuilder<ConfigCubit, ConfigState>(
-              builder: (context, configState) {
-                final config = configState is ConfigLoaded
-                    ? configState.config
-                    : const AppConfig();
-                return IconButton(
+              bottom: sincronizarComandas
+                  ? const TabBar(
+                      indicatorColor: Colors.amber,
+                      indicatorWeight: 3,
+                      labelColor: Colors.white,
+                      unselectedLabelColor: Colors.white70,
+                      tabs: [
+                        Tab(
+                          icon: Icon(Icons.table_restaurant_rounded, size: 20),
+                          text: 'Mesas',
+                        ),
+                        Tab(
+                          icon: Icon(Icons.receipt_long_rounded, size: 20),
+                          text: 'Comandas',
+                        ),
+                      ],
+                    )
+                  : null,
+              actions: [
+                // Alternar Modo Escuro
+                IconButton(
                   tooltip: config.modoEscuro
                       ? 'Alternar para Modo Claro'
                       : 'Alternar para Modo Escuro',
@@ -117,167 +156,187 @@ class _MesaGridScreenState extends State<MesaGridScreen> {
                         config.copyWith(modoEscuro: !config.modoEscuro);
                     context.read<ConfigCubit>().salvarConfiguracoes(novaConfig);
                   },
-                );
-              },
-            ),
-
-            // Botão de Métricas e Giro do Salão
-            IconButton(
-              tooltip: 'Métricas e Giro do Salão',
-              icon: const Icon(Icons.analytics_outlined, size: 22),
-              onPressed: () {
-                final mesaState = context.read<MesaCubit>().state;
-                if (mesaState is MesaLoaded) {
-                  showDialog(
-                    context: context,
-                    builder: (_) => MetricasSalaoDialog(mesas: mesaState.mesas),
-                  );
-                }
-              },
-            ),
-
-            // Botão de Atualização do APK
-            IconButton(
-              tooltip: 'Verificar Atualização (APK)',
-              icon: const Icon(Icons.system_update_alt_rounded, size: 22),
-              onPressed: () => _checarAtualizacao(silencioso: false),
-            ),
-
-            // Configurações
-            IconButton(
-              tooltip: 'Configurações e Conexão',
-              icon: const Icon(Icons.settings_outlined, size: 22),
-              onPressed: () => _abrirConfiguracoes(context),
-            ),
-
-            // Recarregar
-            IconButton(
-              tooltip: 'Recarregar Mesas',
-              icon: const Icon(Icons.refresh_rounded, size: 22),
-              onPressed: () {
-                final configState = context.read<ConfigCubit>().state;
-                final config =
-                    configState is ConfigLoaded ? configState.config : null;
-                context.read<MesaCubit>().carregarMesas(config: config);
-              },
-            ),
-            const SizedBox(width: 4),
-          ],
-        ),
-        body: BlocConsumer<MesaCubit, MesaState>(
-          listener: (context, state) {
-            if (state is MesaError) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text(state.mensagem),
-                  backgroundColor: Colors.red.shade800,
-                  behavior: SnackBarBehavior.floating,
                 ),
-              );
-            }
-          },
-          builder: (context, state) {
-            if (state is MesaLoading) {
-              return const Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    CircularProgressIndicator(),
-                    SizedBox(height: 16),
-                    Text(
-                      'Carregando mesas e status de permanência...',
-                      style: TextStyle(color: Color(0xFF64748B)),
-                    ),
-                  ],
+
+                // Métricas do Salão
+                IconButton(
+                  tooltip: 'Métricas e Giro do Salão',
+                  icon: const Icon(Icons.analytics_outlined, size: 22),
+                  onPressed: () {
+                    final mesaState = context.read<MesaCubit>().state;
+                    if (mesaState is MesaLoaded) {
+                      showDialog(
+                        context: context,
+                        builder: (_) => MetricasSalaoDialog(mesas: mesaState.mesas),
+                      );
+                    }
+                  },
                 ),
-              );
-            }
 
-            if (state is MesaLoaded) {
-              final mesasFiltradas = _filtrarMesas(state.mesas);
+                // Verificar Atualização
+                IconButton(
+                  tooltip: 'Verificar Atualização (APK)',
+                  icon: const Icon(Icons.system_update_alt_rounded, size: 22),
+                  onPressed: () => _checarAtualizacao(silencioso: false),
+                ),
 
-              return Column(
-                children: [
-                  StatsSummaryWidget(
-                    state: state,
-                    filtroAtivo: _filtroAtivo,
-                    onSelecionarFiltro: (novoFiltro) {
-                      setState(() {
-                        _filtroAtivo = novoFiltro;
-                      });
-                    },
-                  ),
+                // Configurações
+                IconButton(
+                  tooltip: 'Configurações e Conexão',
+                  icon: const Icon(Icons.settings_outlined, size: 22),
+                  onPressed: () => _abrirConfiguracoes(context),
+                ),
 
-                  // Barra de Busca Rápida de Mesas
-                  _buildBarraBusca(),
+                // Recarregar
+                IconButton(
+                  tooltip: 'Recarregar Dados',
+                  icon: const Icon(Icons.refresh_rounded, size: 22),
+                  onPressed: () {
+                    context.read<MesaCubit>().carregarMesas(config: config);
+                    if (sincronizarComandas) {
+                      context.read<ComandaCubit>().carregarComandas(config: config);
+                    }
+                  },
+                ),
+                const SizedBox(width: 4),
+              ],
+            ),
+            body: sincronizarComandas
+                ? TabBarView(
+                    children: [
+                      _buildMesasView(),
+                      const ComandaTabView(),
+                    ],
+                  )
+                : _buildMesasView(),
+          );
 
-                  const Divider(height: 1, thickness: 1),
-                  Expanded(
-                    child: mesasFiltradas.isEmpty
-                        ? Center(
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Icon(Icons.filter_alt_off_rounded,
-                                    size: 44, color: Colors.grey.shade400),
-                                const SizedBox(height: 10),
-                                Text(
-                                  _termoBusca.isNotEmpty
-                                      ? 'Nenhuma mesa encontrada com "$_termoBusca".'
-                                      : 'Nenhuma mesa encontrada para o filtro selecionado.',
-                                  style: TextStyle(
-                                      color: Colors.grey.shade600, fontSize: 14),
-                                ),
-                              ],
+          if (sincronizarComandas) {
+            return DefaultTabController(
+              length: 2,
+              child: scaffoldContent,
+            );
+          }
+
+          return scaffoldContent;
+        },
+      ),
+    );
+  }
+
+  Widget _buildMesasView() {
+    return BlocConsumer<MesaCubit, MesaState>(
+      listener: (context, state) {
+        if (state is MesaError) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(state.mensagem),
+              backgroundColor: Colors.red.shade800,
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        }
+      },
+      builder: (context, state) {
+        if (state is MesaLoading) {
+          return const Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                CircularProgressIndicator(),
+                SizedBox(height: 16),
+                Text(
+                  'Carregando mesas e status de permanência...',
+                  style: TextStyle(color: Color(0xFF64748B)),
+                ),
+              ],
+            ),
+          );
+        }
+
+        if (state is MesaLoaded) {
+          final mesasFiltradas = _filtrarMesas(state.mesas);
+
+          return Column(
+            children: [
+              StatsSummaryWidget(
+                state: state,
+                filtroAtivo: _filtroAtivo,
+                onSelecionarFiltro: (novoFiltro) {
+                  setState(() {
+                    _filtroAtivo = novoFiltro;
+                  });
+                },
+              ),
+
+              // Barra de Busca Rápida de Mesas
+              _buildBarraBusca(),
+
+              const Divider(height: 1, thickness: 1),
+              Expanded(
+                child: mesasFiltradas.isEmpty
+                    ? Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.filter_alt_off_rounded,
+                                size: 44, color: Colors.grey.shade400),
+                            const SizedBox(height: 10),
+                            Text(
+                              _termoBusca.isNotEmpty
+                                  ? 'Nenhuma mesa encontrada com "$_termoBusca".'
+                                  : 'Nenhuma mesa encontrada para o filtro selecionado.',
+                              style: TextStyle(
+                                  color: Colors.grey.shade600, fontSize: 14),
                             ),
-                          )
-                        : LayoutBuilder(
-                            builder: (context, constraints) {
-                              int crossAxisCount;
-                              if (constraints.maxWidth > 1400) {
-                                crossAxisCount = 8;
-                              } else if (constraints.maxWidth > 1100) {
-                                crossAxisCount = 6;
-                              } else if (constraints.maxWidth > 800) {
-                                crossAxisCount = 4;
-                              } else if (constraints.maxWidth > 550) {
-                                crossAxisCount = 3;
-                              } else {
-                                crossAxisCount = 2;
-                              }
+                          ],
+                        ),
+                      )
+                    : LayoutBuilder(
+                        builder: (context, constraints) {
+                          int crossAxisCount;
+                          if (constraints.maxWidth > 1400) {
+                            crossAxisCount = 8;
+                          } else if (constraints.maxWidth > 1100) {
+                            crossAxisCount = 6;
+                          } else if (constraints.maxWidth > 800) {
+                            crossAxisCount = 4;
+                          } else if (constraints.maxWidth > 550) {
+                            crossAxisCount = 3;
+                          } else {
+                            crossAxisCount = 2;
+                          }
 
-                              return GridView.builder(
-                                padding: const EdgeInsets.all(8),
-                                gridDelegate:
-                                    SliverGridDelegateWithFixedCrossAxisCount(
-                                  crossAxisCount: crossAxisCount,
-                                  crossAxisSpacing: 8,
-                                  mainAxisSpacing: 8,
-                                  childAspectRatio: 1.15,
-                                ),
-                                itemCount: mesasFiltradas.length,
-                                itemBuilder: (context, index) {
-                                  final mesa = mesasFiltradas[index];
-                                  return MesaCardWidget(
-                                    mesa: mesa,
-                                    onTap: () => _tratarCliqueMesa(
-                                        context, mesa, state.mesas),
-                                  );
-                                },
+                          return GridView.builder(
+                            padding: const EdgeInsets.all(8),
+                            gridDelegate:
+                                SliverGridDelegateWithFixedCrossAxisCount(
+                              crossAxisCount: crossAxisCount,
+                              crossAxisSpacing: 8,
+                              mainAxisSpacing: 8,
+                              childAspectRatio: 1.15,
+                            ),
+                            itemCount: mesasFiltradas.length,
+                            itemBuilder: (context, index) {
+                              final mesa = mesasFiltradas[index];
+                              return MesaCardWidget(
+                                mesa: mesa,
+                                onTap: () => _tratarCliqueMesa(
+                                    context, mesa, state.mesas),
                               );
                             },
-                          ),
-                  ),
-                ],
-              );
-            }
+                          );
+                        },
+                      ),
+              ),
+            ],
+          );
+        }
 
-            return const Center(
-              child: Text('Iniciando sistema de gestão de mesas...'),
-            );
-          },
-        ),
-      ),
+        return const Center(
+          child: Text('Iniciando sistema CheckMesa...'),
+        );
+      },
     );
   }
 
@@ -560,6 +619,10 @@ class _MesaGridScreenState extends State<MesaGridScreen> {
           context.read<ConfigCubit>().salvarConfiguracoes(novaConfig);
           context.read<MesaCubit>().definirConfiguracao(novaConfig);
           context.read<MesaCubit>().carregarMesas(config: novaConfig);
+          context.read<ComandaCubit>().definirConfiguracao(novaConfig);
+          if (novaConfig.sincronizarComandas) {
+            context.read<ComandaCubit>().carregarComandas(config: novaConfig);
+          }
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
               content: Text('Configurações atualizadas com sucesso!'),

@@ -35,4 +35,8 @@ class AppConstants {
   static const String keyPermitirTransferirMesas = 'config_permitir_transferir_mesas';
   static const String keyAlertaSonoro = 'config_alerta_sonoro';
   static const String keyModoEscuro = 'config_modo_escuro';
+  static const String keySincronizarComandas = 'config_sincronizar_comandas';
+  static const String keyTotalComandas = 'config_total_comandas';
+  static const int defaultTotalComandas = 50;
 }
+

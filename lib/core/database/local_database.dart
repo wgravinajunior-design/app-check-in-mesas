@@ -32,11 +32,29 @@ class LocalDatabase {
       path = join(dbPath, filePath);
     }
 
-    return await openDatabase(
+    final db = await openDatabase(
       path,
       version: 1,
       onCreate: _createDB,
     );
+    await _ensureTables(db);
+    return db;
+  }
+
+  Future<void> _ensureTables(Database db) async {
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS TB_COMANDA (
+        COM_ID INTEGER PRIMARY KEY,
+        COM_EMPRESA INTEGER NOT NULL,
+        COM_CODIGO TEXT NOT NULL,
+        COM_DESCRICAO TEXT,
+        COM_STATUS TEXT NOT NULL DEFAULT 'A'
+      )
+    ''');
+    await db.execute('''
+      CREATE INDEX IF NOT EXISTS IDX_TB_COMANDA_EMPRESA_CODIGO 
+      ON TB_COMANDA (COM_EMPRESA, COM_CODIGO)
+    ''');
   }
 
   Future<void> _createDB(Database db, int version) async {
@@ -51,6 +69,18 @@ class LocalDatabase {
         MSA_STATUS TEXT NOT NULL DEFAULT 'A'
       )
     ''');
+
+    // Tabela TB_COMANDA
+    await db.execute('''
+      CREATE TABLE TB_COMANDA (
+        COM_ID INTEGER PRIMARY KEY,
+        COM_EMPRESA INTEGER NOT NULL,
+        COM_CODIGO TEXT NOT NULL,
+        COM_DESCRICAO TEXT,
+        COM_STATUS TEXT NOT NULL DEFAULT 'A'
+      )
+    ''');
+
 
     // Tabela TB_INGRESSO espelhada do ERP para auditoria e histórico de check-in / check-out
     await db.execute('''

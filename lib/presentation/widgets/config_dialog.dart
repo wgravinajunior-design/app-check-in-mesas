@@ -38,6 +38,7 @@ class _ConfigDialogState extends State<ConfigDialog> {
   bool _permitirTransferirMesas = true;
   bool _alertaSonoro = true;
   bool _modoEscuro = false;
+  bool _sincronizarComandas = true;
 
   final _formKey = GlobalKey<FormState>();
 
@@ -47,6 +48,7 @@ class _ConfigDialogState extends State<ConfigDialog> {
     _permitirTransferirMesas = widget.configAtual.permitirTransferirMesas;
     _alertaSonoro = widget.configAtual.alertaSonoro;
     _modoEscuro = widget.configAtual.modoEscuro;
+    _sincronizarComandas = widget.configAtual.sincronizarComandas;
 
     _tempoAlertaController = TextEditingController(
       text: widget.configAtual.tempoAlertaMinutos.toString(),
@@ -102,6 +104,7 @@ class _ConfigDialogState extends State<ConfigDialog> {
       permitirTransferirMesas: _permitirTransferirMesas,
       alertaSonoro: _alertaSonoro,
       modoEscuro: _modoEscuro,
+      sincronizarComandas: _sincronizarComandas,
     );
   }
 
@@ -641,6 +644,28 @@ class _ConfigDialogState extends State<ConfigDialog> {
                                 onChanged: (val) {
                                   setState(() {
                                     _modoEscuro = val;
+                                  });
+                                },
+                              ),
+                              const Divider(height: 8),
+
+                              // Switch: Sincronizar Comandas
+                              SwitchListTile(
+                                contentPadding: EdgeInsets.zero,
+                                dense: true,
+                                secondary: const Icon(Icons.receipt_long_rounded, color: Color(0xFF0D9488)),
+                                title: const Text(
+                                  'Sincronizar Comandas',
+                                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                                ),
+                                subtitle: const Text(
+                                  'Habilita a aba de comandas e o controle de permanência de comandas ativas',
+                                  style: TextStyle(fontSize: 11, color: Color(0xFF64748B)),
+                                ),
+                                value: _sincronizarComandas,
+                                onChanged: (val) {
+                                  setState(() {
+                                    _sincronizarComandas = val;
                                   });
                                 },
                               ),

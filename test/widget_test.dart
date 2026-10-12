@@ -3,6 +3,7 @@ import 'package:apk_check_in/core/constants/app_constants.dart';
 import 'package:apk_check_in/core/constants/mesas_padrao_mansao.dart';
 import 'package:apk_check_in/core/utils/time_formatter.dart';
 import 'package:apk_check_in/domain/entities/app_config.dart';
+import 'package:apk_check_in/domain/entities/comanda.dart';
 import 'package:apk_check_in/domain/entities/status_permanencia.dart';
 
 void main() {
@@ -61,6 +62,42 @@ void main() {
       const duracao = Duration(hours: 2, minutes: 15, seconds: 30);
       expect(TimeFormatter.formatDuration(duracao), equals('02:15:30'));
       expect(TimeFormatter.formatDuracaoAmigavel(duracao), equals('2h 15m'));
+    });
+
+    test('AppConfig deve suportar sincronizarComandas e totalComandas', () {
+      const configPadrao = AppConfig();
+      expect(configPadrao.sincronizarComandas, isTrue);
+      expect(configPadrao.totalComandas, equals(50));
+
+      final configSemComandas = configPadrao.copyWith(
+        sincronizarComandas: false,
+        totalComandas: 100,
+      );
+      expect(configSemComandas.sincronizarComandas, isFalse);
+      expect(configSemComandas.totalComandas, equals(100));
+    });
+
+    test('Entidade Comanda deve suportar campos e transicoes de status', () {
+      const comandaLivre = Comanda(
+        id: 10,
+        empresaId: 1,
+        codigo: '010',
+        descricao: 'Comanda 010',
+        isOcupada: false,
+        statusPermanencia: StatusPermanencia.livre,
+      );
+      expect(comandaLivre.isOcupada, isFalse);
+      expect(comandaLivre.statusPermanencia, equals(StatusPermanencia.livre));
+      expect(comandaLivre.nomeExibicao, equals('Comanda 010'));
+
+      final comandaOcupada = comandaLivre.copyWith(
+        isOcupada: true,
+        statusPermanencia: StatusPermanencia.normal,
+        tempoDecorrido: const Duration(minutes: 30),
+      );
+      expect(comandaOcupada.isOcupada, isTrue);
+      expect(comandaOcupada.statusPermanencia, equals(StatusPermanencia.normal));
+      expect(comandaOcupada.tempoDecorrido.inMinutes, equals(30));
     });
   });
 }

@@ -1,15 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'core/theme/app_theme.dart';
+import 'data/datasources/comanda_local_datasource.dart';
 import 'data/datasources/ingresso_local_datasource.dart';
 import 'data/datasources/mesa_local_datasource.dart';
 import 'data/datasources/retaguarda_sync_datasource.dart';
+import 'data/repositories/comanda_repository_impl.dart';
 import 'data/repositories/config_repository_impl.dart';
 import 'data/repositories/ingresso_repository_impl.dart';
 import 'data/repositories/mesa_repository_impl.dart';
+import 'domain/repositories/comanda_repository.dart';
 import 'domain/repositories/config_repository.dart';
 import 'domain/repositories/ingresso_repository.dart';
 import 'domain/repositories/mesa_repository.dart';
+import 'presentation/cubits/comanda/comanda_cubit.dart';
 import 'presentation/cubits/config/config_cubit.dart';
 import 'presentation/cubits/config/config_state.dart';
 import 'presentation/cubits/mesa/mesa_cubit.dart';
@@ -28,26 +32,32 @@ void main() async {
   final MesaRepository mesaRepository = MesaRepositoryImpl(
     localDataSource: MesaLocalDataSource(),
   );
+  final ComandaRepository comandaRepository = ComandaRepositoryImpl(
+    localDataSource: ComandaLocalDataSource(),
+  );
 
   runApp(
-    AppCheckInPermanencia(
+    CheckMesaApp(
       configRepository: configRepository,
       ingressoRepository: ingressoRepository,
       mesaRepository: mesaRepository,
+      comandaRepository: comandaRepository,
     ),
   );
 }
 
-class AppCheckInPermanencia extends StatelessWidget {
+class CheckMesaApp extends StatelessWidget {
   final ConfigRepository configRepository;
   final IngressoRepository ingressoRepository;
   final MesaRepository mesaRepository;
+  final ComandaRepository comandaRepository;
 
-  const AppCheckInPermanencia({
+  const CheckMesaApp({
     super.key,
     required this.configRepository,
     required this.ingressoRepository,
     required this.mesaRepository,
+    required this.comandaRepository,
   });
 
   @override
@@ -65,11 +75,22 @@ class AppCheckInPermanencia extends StatelessWidget {
               mesaRepository: mesaRepository,
               ingressoRepository: ingressoRepository,
             );
-            // Carrega as mesas assim que o cubit é criado
             configRepository.carregarConfiguracoes().then((config) {
               mesaCubit.carregarMesas(config: config);
             });
             return mesaCubit;
+          },
+        ),
+        BlocProvider<ComandaCubit>(
+          create: (context) {
+            final comandaCubit = ComandaCubit(
+              comandaRepository: comandaRepository,
+              ingressoRepository: ingressoRepository,
+            );
+            configRepository.carregarConfiguracoes().then((config) {
+              comandaCubit.carregarComandas(config: config);
+            });
+            return comandaCubit;
           },
         ),
       ],
@@ -78,7 +99,7 @@ class AppCheckInPermanencia extends StatelessWidget {
           final bool modoEscuro = state is ConfigLoaded ? state.config.modoEscuro : false;
 
           return MaterialApp(
-            title: 'Gestão de Permanência de Mesas',
+            title: 'CheckMesa',
             debugShowCheckedModeBanner: false,
             theme: AppTheme.lightTheme,
             darkTheme: AppTheme.darkTheme,
@@ -92,4 +113,3 @@ class AppCheckInPermanencia extends StatelessWidget {
     );
   }
 }
-

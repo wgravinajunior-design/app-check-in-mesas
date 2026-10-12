@@ -16,6 +16,8 @@ class AppConfig extends Equatable {
   final bool permitirTransferirMesas;
   final bool alertaSonoro;
   final bool modoEscuro;
+  final bool sincronizarComandas;
+  final int totalComandas;
 
   const AppConfig({
     this.tempoAlertaMinutos = AppConstants.defaultTempoAlertaMinutos,
@@ -32,6 +34,8 @@ class AppConfig extends Equatable {
     this.permitirTransferirMesas = true,
     this.alertaSonoro = true,
     this.modoEscuro = false,
+    this.sincronizarComandas = true,
+    this.totalComandas = AppConstants.defaultTotalComandas,
   });
 
   /// Monta a string de conexão nativa do Firebird 5.0 (ex.: localhost/3060:C:\...\DADOS.FDB)
@@ -63,6 +67,8 @@ class AppConfig extends Equatable {
     bool? permitirTransferirMesas,
     bool? alertaSonoro,
     bool? modoEscuro,
+    bool? sincronizarComandas,
+    int? totalComandas,
   }) {
     return AppConfig(
       tempoAlertaMinutos: tempoAlertaMinutos ?? this.tempoAlertaMinutos,
@@ -79,6 +85,8 @@ class AppConfig extends Equatable {
       permitirTransferirMesas: permitirTransferirMesas ?? this.permitirTransferirMesas,
       alertaSonoro: alertaSonoro ?? this.alertaSonoro,
       modoEscuro: modoEscuro ?? this.modoEscuro,
+      sincronizarComandas: sincronizarComandas ?? this.sincronizarComandas,
+      totalComandas: totalComandas ?? this.totalComandas,
     );
   }
 
@@ -98,6 +106,9 @@ class AppConfig extends Equatable {
         permitirTransferirMesas,
         alertaSonoro,
         modoEscuro,
+        sincronizarComandas,
+        totalComandas,
       ];
 }
+
 
