@@ -82,6 +82,11 @@ jobs:
           echo "Baixe o arquivo \`app-release.apk\` anexo abaixo para instalar ou atualizar diretamente no seu smartphone ou tablet Android." >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
 
+      - name: Preparar APK com Nome e Versão
+        run: |
+          TAG="${{ steps.release_info.outputs.tag }}"
+          cp build/app/outputs/flutter-apk/app-release.apk "build/app/outputs/flutter-apk/CheckIn-Mesas-${TAG}.apk"
+
       - name: Criar GitHub Release e Anexar APK
         uses: softprops/action-gh-release@v2
         with:
@@ -90,6 +95,8 @@ jobs:
           body: ${{ steps.release_info.outputs.notes }}
           draft: false
           prerelease: false
-          files: build/app/outputs/flutter-apk/app-release.apk
+          files: |
+            build/app/outputs/flutter-apk/CheckIn-Mesas-*.apk
+            build/app/outputs/flutter-apk/app-release.apk
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
