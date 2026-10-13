@@ -11,10 +11,11 @@ class RetaguardaSyncDataSource {
 
   /// Gera a instrução SQL DML completa e formatada pronta para execução direta no Firebird
   String gerarSqlInsercaoFirebird(IngressoModel ingresso) {
-    final String dtLancamento = TimeFormatter.formatDateTime(ingresso.dtLancamento);
-    final String dtEmissao = ingresso.dtEmissao != null ? TimeFormatter.formatDateSql(ingresso.dtEmissao!) : '';
-    final String dtEvento = ingresso.dtEvento != null ? TimeFormatter.formatDateSql(ingresso.dtEvento!) : '';
-    final String dtEntrada = TimeFormatter.formatDateTime(ingresso.dtEntrada);
+    final String dtLancamento = TimeFormatter.formatDateTimeSql(ingresso.dtLancamento ?? DateTime.now());
+    final String dtEmissao = ingresso.dtEmissao != null ? TimeFormatter.formatDateSql(ingresso.dtEmissao!) : TimeFormatter.formatDateSql(DateTime.now());
+    final String dtEvento = ingresso.dtEvento != null ? TimeFormatter.formatDateSql(ingresso.dtEvento!) : TimeFormatter.formatDateSql(DateTime.now());
+    final String hrEvento = ingresso.hrEvento ?? TimeFormatter.formatTime(DateTime.now());
+    final String dtEntrada = TimeFormatter.formatDateTimeSql(ingresso.dtEntrada ?? DateTime.now());
 
     return '''
 INSERT INTO TB_INGRESSO (
@@ -45,20 +46,20 @@ INSERT INTO TB_INGRESSO (
     ING_GERAR_FINANCEIRO
 ) VALUES (
     ${ingresso.empresaId},
-    ${ingresso.id},
+    (SELECT COALESCE(MAX(ING_ID), 0) + 1 FROM TB_INGRESSO WHERE ING_EMPRESA = ${ingresso.empresaId}),
     '${ingresso.status}',
     ${ingresso.usuarioId ?? 1},
     '$dtLancamento',
     '$dtEmissao',
     '$dtEvento',
-    '${ingresso.hrEvento ?? '00:00:00'}',
+    '$hrEvento',
     '$dtEntrada',
     NULL,
     0,
     NULL,
     ${ingresso.tipoIngressoId ?? 1},
     ${ingresso.valor.toStringAsFixed(2)},
-    '${ingresso.observacao?.replaceAll("'", "''") ?? ''}',
+    '${ingresso.observacao?.replaceAll("'", "''") ?? 'Check-in efetuado via App'}',
     NULL,
     '${ingresso.codigoMesa}',
     ${ingresso.totalRecebido.toStringAsFixed(2)},
@@ -75,15 +76,18 @@ INSERT INTO TB_INGRESSO (
 
   /// Gera a instrução SQL UPDATE completa para encerramento de permanência na retaguarda Firebird
   String gerarSqlCheckOutFirebird(IngressoModel ingresso) {
-    final String dtSaida = TimeFormatter.formatDateTime(ingresso.dtSaida);
+    final String dtSaida = TimeFormatter.formatDateTimeSql(ingresso.dtSaida ?? DateTime.now());
 
     return '''
 UPDATE TB_INGRESSO
 SET ING_STATUS = 'F',
     ING_DT_SAIDA = '$dtSaida',
-    ING_DURACAO = ${ingresso.duracaoMinutos ?? 0}
+    ING_DURACAO = ${ingresso.duracaoMinutos ?? 0},
+    ING_OBSERVACAO = COALESCE(ING_OBSERVACAO, '') || ' | Saída registrada via App'
 WHERE ING_EMPRESA = ${ingresso.empresaId}
-  AND ING_ID = ${ingresso.id};
+  AND (ING_CODIGO = '${ingresso.codigoMesa}' OR ING_ID = ${ingresso.id})
+  AND (ING_STATUS = 'E' OR ING_STATUS = 'A')
+  AND ING_DT_SAIDA IS NULL;
 ''';
   }
 

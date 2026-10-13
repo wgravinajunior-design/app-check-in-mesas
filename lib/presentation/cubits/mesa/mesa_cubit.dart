@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../domain/entities/app_config.dart';
@@ -43,14 +44,38 @@ class MesaCubit extends Cubit<MesaState> {
     }
   }
 
-  Future<void> carregarMesas({AppConfig? config}) async {
+  Future<void> carregarMesas({bool emSegundoPlano = false, AppConfig? config}) async {
     if (config != null) {
       _config = config;
     }
 
-    emit(MesaLoading());
+    if (!emSegundoPlano) {
+      _contadorTicks = 0;
+      if (state is! MesaLoaded) {
+        emit(MesaLoading());
+      }
+    }
+
     try {
-      // Garante a existência do lote de mesas se for a primeira execução
+      // 1. Se Firebird estiver configurado, tenta a consulta oficial da retaguarda com CTE
+      if (_config.caminhoBanco.trim().isNotEmpty) {
+        try {
+          final List<Mesa> mesasFirebird =
+              await mesaRepository.carregarMesasCompletasFirebird(config: _config);
+          if (mesasFirebird.isNotEmpty) {
+            final agora = DateTime.now();
+            emit(MesaLoaded(
+              mesas: mesasFirebird,
+              ultimoTick: agora,
+            ));
+            return;
+          }
+        } catch (e) {
+          debugPrint('Falha ao consultar CTE Firebird, recorrendo a base local: $e');
+        }
+      }
+
+      // 2. Base local SQLite (offline ou fallback)
       await mesaRepository.inicializarMesasPadrao(
         empresaId: _config.empresaId,
         quantidade: _config.totalMesas,
@@ -67,9 +92,11 @@ class MesaCubit extends Cubit<MesaState> {
 
       final agora = DateTime.now();
       final List<Mesa> mesasCompletas = listaMesasBase.map((mesa) {
-        // Localiza ingresso em aberto vinculado a este código de mesa
+        // Localiza ingresso em aberto vinculado a este código de mesa ou id
         final Ingresso? ingressoMesa = ingressosAbertos.cast<Ingresso?>().firstWhere(
-              (ing) => ing?.codigoMesa == mesa.codigo,
+              (ing) =>
+                  ing?.codigoMesa == mesa.codigo ||
+                  ing?.codigoMesa == mesa.id.toString(),
               orElse: () => null,
             );
 
@@ -195,8 +222,11 @@ class MesaCubit extends Cubit<MesaState> {
     bool houveMudanca = false;
     _contadorTicks++;
 
-    // A cada 15 segundos, agenda sincronização dos novos pedidos lançados na retaguarda
-    if (_contadorTicks % 15 == 0 && !_sincronizandoConsumo) {
+    // A cada 2 minutos (120 segundos), executa atualização automática completa em segundo plano
+    if (_contadorTicks % 120 == 0) {
+      carregarMesas(emSegundoPlano: true);
+    } else if (_contadorTicks % 15 == 0 && !_sincronizandoConsumo) {
+      // A cada 15 segundos sincroniza consumo incremental
       atualizarConsumoMesas();
     }
 
@@ -266,15 +296,29 @@ class MesaCubit extends Cubit<MesaState> {
     try {
       final DateTime dataEntrada = DateTime.now();
 
-      // Grava diretamente na estrutura de TB_INGRESSO
+      // 1. Grava diretamente na retaguarda Firebird (TB_INGRESSO: status 'E') se configurado
+      if (_config.caminhoBanco.trim().isNotEmpty) {
+        try {
+          await mesaRepository.executarCheckInFirebird(
+            config: _config,
+            mesa: mesa,
+            dataHoraEntrada: dataEntrada,
+            observacao: observacao,
+          );
+        } catch (e) {
+          debugPrint('Falha ao inserir Check-in no Firebird: $e');
+        }
+      }
+
+      // 2. Grava na persistência local SQLite para integridade offline
       final Ingresso novoIngresso = await ingressoRepository.realizarCheckIn(
         empresaId: _config.empresaId,
-        codigoMesa: mesa.codigo,
+        codigoMesa: mesa.id.toString(),
         dataHoraEntrada: dataEntrada,
         observacao: observacao,
       );
 
-      // Atualiza o estado da mesa na retaguarda
+      // Atualiza o estado da mesa
       await mesaRepository.atualizarStatusMesa(
         mesaId: mesa.id,
         isOcupada: true,
@@ -327,7 +371,20 @@ class MesaCubit extends Cubit<MesaState> {
     try {
       final DateTime dataSaida = DateTime.now();
 
-      // Atualiza o ingresso com a saída e duração
+      // 1. Grava diretamente na retaguarda Firebird (TB_INGRESSO: status 'F' e DT_SAIDA) se configurado
+      if (_config.caminhoBanco.trim().isNotEmpty) {
+        try {
+          await mesaRepository.executarCheckOutFirebird(
+            config: _config,
+            mesa: mesa,
+            dataHoraSaida: dataSaida,
+          );
+        } catch (e) {
+          debugPrint('Falha ao registrar Check-out no Firebird: $e');
+        }
+      }
+
+      // 2. Atualiza o ingresso localmente no SQLite
       await ingressoRepository.realizarCheckOut(
         empresaId: _config.empresaId,
         ingressoId: ingressoAtual.id,

@@ -88,7 +88,7 @@ class IngressoModel extends Ingresso {
     return IngressoModel(
       empresaId: parseInt(map['ING_EMPRESA']) ?? 1,
       id: parseInt(map['ING_ID']) ?? 0,
-      status: map['ING_STATUS'] as String? ?? 'A',
+      status: map['ING_STATUS'] as String? ?? 'E',
       usuarioId: parseInt(map['ING_USUARIO']) ?? 1,
       dtLancamento: parseDate(map['ING_DT_LANCAMENTO']),
       dtEmissao: parseDate(map['ING_DT_EMISSAO']),

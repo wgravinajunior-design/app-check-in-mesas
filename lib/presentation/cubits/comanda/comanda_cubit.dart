@@ -17,6 +17,7 @@ class ComandaCubit extends Cubit<ComandaState> {
   AppConfig _config = const AppConfig();
   final Set<int> _comandasAlertadas = {};
   final Set<int> _comandasExcedidas = {};
+  int _contadorTicks = 0;
 
   ComandaCubit({
     required this.comandaRepository,
@@ -39,12 +40,17 @@ class ComandaCubit extends Cubit<ComandaState> {
     }
   }
 
-  Future<void> carregarComandas({AppConfig? config}) async {
+  Future<void> carregarComandas({bool emSegundoPlano = false, AppConfig? config}) async {
     if (config != null) {
       _config = config;
     }
 
-    emit(ComandaLoading());
+    if (!emSegundoPlano) {
+      _contadorTicks = 0;
+      if (state is! ComandaLoaded) {
+        emit(ComandaLoading());
+      }
+    }
     try {
       final int totalQtd = _config.totalComandas > 0 ? _config.totalComandas : 50;
       await comandaRepository.inicializarComandasPadrao(
@@ -102,6 +108,11 @@ class ComandaCubit extends Cubit<ComandaState> {
 
     final agora = DateTime.now();
     bool houveMudanca = false;
+    _contadorTicks++;
+
+    if (_contadorTicks % 120 == 0) {
+      carregarComandas(emSegundoPlano: true);
+    }
 
     final List<Comanda> atualizadas = estadoAtual.comandas.map((comanda) {
       if (!comanda.isOcupada || comanda.ingressoAtual?.dtEntrada == null) {

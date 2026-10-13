@@ -13,8 +13,8 @@ class AppConstants {
   static const String defaultSenhaFirebird = 'masterkey';
 
   // Status da Tabela TB_INGRESSO
-  static const String statusIngressoAberto = 'A';
-  static const String statusIngressoFinalizado = 'F';
+  static const String statusIngressoAberto = 'E'; // 'E' = Entrada (modelo ERP Firebird)
+  static const String statusIngressoFinalizado = 'F'; // 'F' = Finalizado (Check-out)
 
   // Status da Mesa
   static const String statusMesaLivre = 'A'; // Aberta / Livre

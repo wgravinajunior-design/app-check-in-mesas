@@ -66,7 +66,7 @@ INSERT INTO TB_INGRESSO (
 ) VALUES (
     1,                                                    -- ING_EMPRESA
     (SELECT COALESCE(MAX(ING_ID), 0) + 1 FROM TB_INGRESSO WHERE ING_EMPRESA = 1), -- ING_ID
-    'A',                                                  -- ING_STATUS ('A' = Em Atendimento)
+    'E',                                                  -- ING_STATUS ('E' = Entrada / Em Atendimento)
     1,                                                    -- ING_USUARIO
     CURRENT_TIMESTAMP,                                    -- ING_DT_LANCAMENTO
     CURRENT_DATE,                                         -- ING_DT_EMISSAO
@@ -80,7 +80,7 @@ INSERT INTO TB_INGRESSO (
     0.00,                                                 -- ING_VALOR
     'Check-in efetuado via App Mobile de Permanência',    -- ING_OBSERVACAO
     NULL,                                                 -- ING_PEDIDO
-    '001',                                                -- ING_CODIGO (Número da Mesa)
+    '1',                                                  -- ING_CODIGO (ID da Mesa / MSA_ID)
     0.00,                                                 -- ING_TOTAL_RECEBIDO
     0.00,                                                 -- ING_TOTAL_PRODUTOS
     0.00,                                                 -- ING_VALOR_DIFERENCA
@@ -92,30 +92,17 @@ INSERT INTO TB_INGRESSO (
 );
 COMMIT;
 
--- 2.2. Atualização de Status da Mesa na Retaguarda para Ocupada
-UPDATE TB_MESA
-SET MSA_STATUS = 'O'
-WHERE MSA_EMPRESA = 1
-  AND MSA_CODIGO = '001';
-COMMIT;
-
--- 2.3. Fechamento de Check-out e Atualização de Permanência
+-- 2.2. Fechamento de Check-out e Atualização de Permanência
 -- Executado no momento em que a mesa é liberada pelo cliente.
 UPDATE TB_INGRESSO
 SET ING_STATUS = 'F',
     ING_DT_SAIDA = CURRENT_TIMESTAMP,
     ING_DURACAO = DATEDIFF(MINUTE FROM ING_DT_ENTRADA TO CURRENT_TIMESTAMP),
-    ING_OBSERVACAO = ING_OBSERVACAO || ' | Check-out registrado via App'
+    ING_OBSERVACAO = COALESCE(ING_OBSERVACAO, '') || ' | Check-out registrado via App'
 WHERE ING_EMPRESA = 1
-  AND ING_CODIGO = '001'
-  AND ING_STATUS = 'A';
-COMMIT;
-
--- 2.4. Atualização de Status da Mesa na Retaguarda para Livre
-UPDATE TB_MESA
-SET MSA_STATUS = 'A'
-WHERE MSA_EMPRESA = 1
-  AND MSA_CODIGO = '001';
+  AND (ING_CODIGO = '1' OR ING_CODIGO = '001')
+  AND (ING_STATUS = 'E' OR ING_STATUS = 'A')
+  AND ING_DT_SAIDA IS NULL;
 COMMIT;
 
 /* ==============================================================================
@@ -262,3 +249,45 @@ INNER JOIN tb_pedido_venda_item i
 WHERE pv.pev_status <> 'C' 
   AND pv.pev_dt_lancamento >= :data_ingresso 
   AND pv.pev_mesa = :id_mesa;
+
+-- 4.5. Consulta Oficial de Integração em Lote (Lucas Dagnoni - 13/10/2026)
+-- Retorna todas as mesas ativas, status de ingresso ('E'), total consumido, último consumo e pessoas
+WITH MESAS AS (
+  SELECT
+    MES.MSA_ID,
+    MES.MSA_CODIGO
+  FROM TB_MESA MES
+  WHERE MES.MSA_STATUS = 'A'
+),
+INGRESSOS AS (
+  SELECT
+    ING.ING_CODIGO,
+    ING.ING_DT_ENTRADA
+  FROM TB_INGRESSO ING
+  WHERE ING.ING_STATUS = 'E' AND ING.ING_DT_SAIDA IS NULL
+)
+SELECT
+  MSA_ID,
+  MSA_CODIGO,
+  ING_CODIGO,
+  ING_DT_ENTRADA,
+  (SELECT SUM(PV.PEV_VALOR_TOTAL)
+   FROM TB_PEDIDO_VENDA PV
+   WHERE PV.PEV_STATUS <> 'C'
+     AND PV.PEV_DT_LANCAMENTO >= INGRESSOS.ING_DT_ENTRADA
+     AND PV.PEV_MESA = ING_CODIGO) AS TOTAL_CONSUMIDO,
+  (SELECT MAX(I.PEVI_DT_LANCAMENTO)
+   FROM TB_PEDIDO_VENDA PV
+   INNER JOIN TB_PEDIDO_VENDA_ITEM I ON I.PEVI_EMPRESA = PV.PEV_EMPRESA AND I.PEVI_PEDIDO_VENDA = PV.PEV_ID
+   WHERE PV.PEV_STATUS <> 'C'
+     AND PV.PEV_DT_LANCAMENTO >= INGRESSOS.ING_DT_ENTRADA
+     AND PV.PEV_MESA = INGRESSOS.ING_CODIGO) AS ULTIMO_CONSUMO,
+  (SELECT SUM(PV.PEV_QTDE_PESSOAS)
+   FROM TB_PEDIDO_VENDA PV
+   WHERE PV.PEV_STATUS <> 'C'
+     AND PV.PEV_DT_LANCAMENTO >= INGRESSOS.ING_DT_ENTRADA
+     AND PV.PEV_MESA = INGRESSOS.ING_CODIGO) AS QTDE_PESSOAS
+FROM MESAS
+LEFT JOIN INGRESSOS ON INGRESSOS.ING_CODIGO = MESAS.MSA_ID
+ORDER BY MSA_ID;
+

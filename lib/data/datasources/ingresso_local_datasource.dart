@@ -80,12 +80,13 @@ class IngressoLocalDataSource {
         ING_GERAR_FINANCEIRO
       FROM TB_INGRESSO
       WHERE ING_EMPRESA = ?
-        AND ING_CODIGO = ?
-        AND ING_STATUS = 'A'
+        AND (ING_CODIGO = ? OR ING_CODIGO = ? OR ING_CODIGO = ?)
+        AND (ING_STATUS = 'E' OR ING_STATUS = 'A')
+        AND ING_DT_SAIDA IS NULL
       ORDER BY ING_ID DESC
       LIMIT 1
       ''',
-      [empresaId, codigoMesa],
+      [empresaId, codigoMesa, codigoMesa.replaceFirst('C-', ''), 'C-$codigoMesa'],
     );
 
     if (maps.isNotEmpty) {
@@ -182,7 +183,8 @@ class IngressoLocalDataSource {
         ING_GERAR_FINANCEIRO
       FROM TB_INGRESSO
       WHERE ING_EMPRESA = ?
-        AND ING_STATUS = 'A'
+        AND (ING_STATUS = 'E' OR ING_STATUS = 'A')
+        AND ING_DT_SAIDA IS NULL
       ORDER BY ING_ID ASC
       ''',
       [empresaId],

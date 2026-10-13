@@ -187,4 +187,39 @@ class MesaRepositoryImpl implements MesaRepository {
 
     return mapaResumo;
   }
+
+  @override
+  Future<List<Mesa>> carregarMesasCompletasFirebird({required AppConfig config}) {
+    return firebirdBridgeDataSource.consultarMesasComIngressosEConsumoFirebird(
+      config: config,
+    );
+  }
+
+  @override
+  Future<void> executarCheckInFirebird({
+    required AppConfig config,
+    required Mesa mesa,
+    required DateTime dataHoraEntrada,
+    String? observacao,
+  }) {
+    return firebirdBridgeDataSource.executarCheckInFirebird(
+      config: config,
+      mesa: mesa,
+      dataHoraEntrada: dataHoraEntrada,
+      observacao: observacao,
+    );
+  }
+
+  @override
+  Future<void> executarCheckOutFirebird({
+    required AppConfig config,
+    required Mesa mesa,
+    required DateTime dataHoraSaida,
+  }) {
+    return firebirdBridgeDataSource.executarCheckOutFirebird(
+      config: config,
+      mesa: mesa,
+      dataHoraSaida: dataHoraSaida,
+    );
+  }
 }

@@ -183,6 +183,11 @@ void main() {
       expect(resumoVazio.valorUltimoPedido, equals(0.0));
       expect(resumoVazio.valorTotalPedidos, equals(0.0));
     });
+
+    test('Status de TB_INGRESSO deve seguir padrão ERP Firebird (E e F)', () {
+      expect(AppConstants.statusIngressoAberto, equals('E'));
+      expect(AppConstants.statusIngressoFinalizado, equals('F'));
+    });
   });
 }
 

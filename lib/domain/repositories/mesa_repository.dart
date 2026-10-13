@@ -39,5 +39,23 @@ abstract class MesaRepository {
     required List<Mesa> mesasOcupadas,
     required AppConfig config,
   });
+
+  /// Executa a consulta consolidada oficial via Firebird (CTE Mesas + Ingressos + Pedidos)
+  Future<List<Mesa>> carregarMesasCompletasFirebird({required AppConfig config});
+
+  /// Executa o INSERT do Check-in diretamente na TB_INGRESSO do Firebird
+  Future<void> executarCheckInFirebird({
+    required AppConfig config,
+    required Mesa mesa,
+    required DateTime dataHoraEntrada,
+    String? observacao,
+  });
+
+  /// Executa o UPDATE do Check-out diretamente na TB_INGRESSO do Firebird
+  Future<void> executarCheckOutFirebird({
+    required AppConfig config,
+    required Mesa mesa,
+    required DateTime dataHoraSaida,
+  });
 }
 

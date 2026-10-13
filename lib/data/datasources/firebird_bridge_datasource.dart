@@ -6,7 +6,11 @@ import '../../core/constants/app_constants.dart';
 import '../../core/constants/mesas_padrao_mansao.dart';
 import '../../core/utils/time_formatter.dart';
 import '../../domain/entities/app_config.dart';
+import '../../domain/entities/consumo_mesa_resumo.dart';
+import '../../domain/entities/ingresso.dart';
 import '../../domain/entities/mesa.dart';
+import '../../domain/entities/pedido_resumo.dart';
+import '../../domain/entities/status_permanencia.dart';
 import '../models/mesa_model.dart';
 import '../models/pedido_resumo_model.dart';
 
@@ -268,6 +272,17 @@ ORDER BY MSA_ID;
     return MesasPadraoMansao.obterMesasPadrao(config.empresaId);
   }
 
+  StatusPermanencia _calcularStatus(Duration duracao, AppConfig config) {
+    final int minutos = duracao.inMinutes;
+    if (minutos <= config.tempoAlertaMinutos) {
+      return StatusPermanencia.normal;
+    } else if (minutos <= config.tempoLimiteMinutos) {
+      return StatusPermanencia.alertaTolerancia;
+    } else {
+      return StatusPermanencia.limiteExcedido;
+    }
+  }
+
   /// Executa comandos SQL diretamente na base Firebird 5.0 (INSERT / UPDATE em TB_INGRESSO)
   Future<void> executarSqlDiretoNoFirebird({
     required AppConfig config,
@@ -276,19 +291,451 @@ ORDER BY MSA_ID;
     final hostLimpo = config.hostBanco.trim();
     final porta = config.portaBanco > 0 ? config.portaBanco : AppConstants.defaultPortaFirebird;
 
-    final db = await FbDb.attach(
-      host: hostLimpo,
-      port: porta,
-      database: config.caminhoBanco.trim(),
-      user: config.usuarioBanco.trim(),
-      password: config.senhaBanco.trim(),
-    );
-
     try {
-      await db.execute(sql: sql);
-    } finally {
-      await db.detach();
+      final db = await FbDb.attach(
+        host: hostLimpo,
+        port: porta,
+        database: config.caminhoBanco.trim(),
+        user: config.usuarioBanco.trim(),
+        password: config.senhaBanco.trim(),
+      );
+
+      try {
+        await db.execute(sql: sql);
+        return;
+      } finally {
+        await db.detach();
+      }
+    } catch (e) {
+      debugPrint('FbDb nativo falhou: $e. Tentando contingência via ISQL...');
+      if (!kIsWeb && Platform.isWindows) {
+        final isqlPath = _obterCaminhoIsql();
+        if (isqlPath != null) {
+          final stringConexao = _montarStringConexao(config);
+          final user = config.usuarioBanco.trim();
+          final password = config.senhaBanco.trim();
+          try {
+            final process = await Process.start(
+              isqlPath,
+              ['-u', user, '-p', password, '-q', stringConexao],
+              runInShell: false,
+            );
+            process.stdin.writeln(sql);
+            process.stdin.writeln('COMMIT;');
+            process.stdin.writeln('QUIT;');
+            await process.stdin.flush();
+            await process.stdin.close();
+            final exitCode = await process.exitCode;
+            if (exitCode == 0) return;
+          } catch (isqlErr) {
+            debugPrint('ISQL fallback falhou: $isqlErr');
+          }
+        }
+      }
+      rethrow;
     }
+  }
+
+  /// Executa a consulta consolidada oficial fornecida pela equipe do ERP (Lucas Dagnoni):
+  /// - CTE de Mesas ativas (TB_MESA WHERE MSA_STATUS = 'A')
+  /// - CTE de Ingressos abertos (TB_INGRESSO WHERE ING_STATUS = 'E' AND ING_DT_SAIDA IS NULL)
+  /// - Subqueries com Total Consumido, Último Consumo e Quantidade de Pessoas
+  Future<List<Mesa>> consultarMesasComIngressosEConsumoFirebird({
+    required AppConfig config,
+  }) async {
+    const sqlOficial = '''
+WITH MESAS AS (
+  SELECT
+    MES.MSA_ID,
+    MES.MSA_CODIGO
+  FROM TB_MESA MES
+  WHERE MES.MSA_STATUS = 'A'
+),
+INGRESSOS AS (
+  SELECT
+    ING.ING_CODIGO,
+    ING.ING_DT_ENTRADA
+  FROM TB_INGRESSO ING
+  WHERE ING.ING_STATUS = 'E' AND ING.ING_DT_SAIDA IS NULL
+)
+SELECT
+  MSA_ID,
+  MSA_CODIGO,
+  ING_CODIGO,
+  ING_DT_ENTRADA,
+  (SELECT SUM(PV.PEV_VALOR_TOTAL)
+   FROM TB_PEDIDO_VENDA PV
+   WHERE PV.PEV_STATUS <> 'C'
+     AND PV.PEV_DT_LANCAMENTO >= INGRESSOS.ING_DT_ENTRADA
+     AND PV.PEV_MESA = ING_CODIGO) AS TOTAL_CONSUMIDO,
+  (SELECT MAX(I.PEVI_DT_LANCAMENTO)
+   FROM TB_PEDIDO_VENDA PV
+   INNER JOIN TB_PEDIDO_VENDA_ITEM I ON I.PEVI_EMPRESA = PV.PEV_EMPRESA AND I.PEVI_PEDIDO_VENDA = PV.PEV_ID
+   WHERE PV.PEV_STATUS <> 'C'
+     AND PV.PEV_DT_LANCAMENTO >= INGRESSOS.ING_DT_ENTRADA
+     AND PV.PEV_MESA = INGRESSOS.ING_CODIGO) AS ULTIMO_CONSUMO,
+  (SELECT SUM(PV.PEV_QTDE_PESSOAS)
+   FROM TB_PEDIDO_VENDA PV
+   WHERE PV.PEV_STATUS <> 'C'
+     AND PV.PEV_DT_LANCAMENTO >= INGRESSOS.ING_DT_ENTRADA
+     AND PV.PEV_MESA = INGRESSOS.ING_CODIGO) AS QTDE_PESSOAS
+FROM MESAS
+LEFT JOIN INGRESSOS ON INGRESSOS.ING_CODIGO = MESAS.MSA_ID
+ORDER BY MSA_ID;
+''';
+
+    final agora = DateTime.now();
+    final hostLimpo = config.hostBanco.trim();
+    final porta = config.portaBanco > 0 ? config.portaBanco : AppConstants.defaultPortaFirebird;
+    final databasePath = config.caminhoBanco.trim();
+    final user = config.usuarioBanco.trim();
+    final password = config.senhaBanco.trim();
+
+    // 1. Conexão Nativa Direta via FbDb (libfbclient)
+    try {
+      final db = await FbDb.attach(
+        host: hostLimpo,
+        port: porta,
+        database: databasePath,
+        user: user,
+        password: password,
+      );
+
+      final q = db.query();
+      await q.openCursor(sql: sqlOficial);
+
+      final List<Mesa> lista = [];
+      await for (final row in q.rows()) {
+        final int id = int.tryParse(row['MSA_ID']?.toString() ?? '0') ?? 0;
+        final String codigo = (row['MSA_CODIGO']?.toString() ?? '').trim();
+        if (id <= 0 && codigo.isEmpty) continue;
+
+        final dtEntradaBruta = row['ING_DT_ENTRADA'];
+        DateTime? dtEntrada;
+        if (dtEntradaBruta is DateTime) {
+          dtEntrada = dtEntradaBruta;
+        } else if (dtEntradaBruta != null) {
+          dtEntrada = DateTime.tryParse(dtEntradaBruta.toString().trim());
+        }
+
+        final double totalConsumido = double.tryParse(row['TOTAL_CONSUMIDO']?.toString().replaceAll(',', '.') ?? '0.0') ?? 0.0;
+        
+        final dtUltimoConsumoBruta = row['ULTIMO_CONSUMO'];
+        DateTime? dtUltimoConsumo;
+        if (dtUltimoConsumoBruta is DateTime) {
+          dtUltimoConsumo = dtUltimoConsumoBruta;
+        } else if (dtUltimoConsumoBruta != null) {
+          dtUltimoConsumo = DateTime.tryParse(dtUltimoConsumoBruta.toString().trim());
+        }
+
+        final int qtdPessoas = int.tryParse(row['QTDE_PESSOAS']?.toString() ?? '0') ?? 0;
+
+        final bool isOcupada = dtEntrada != null;
+        Duration decorrido = Duration.zero;
+        StatusPermanencia statusPerm = StatusPermanencia.livre;
+        Ingresso? ingresso;
+        ConsumoMesaResumo? consumoResumo;
+
+        if (isOcupada) {
+          decorrido = agora.difference(dtEntrada);
+          statusPerm = _calcularStatus(decorrido, config);
+          ingresso = Ingresso(
+            empresaId: config.empresaId,
+            id: id,
+            status: 'E',
+            dtEntrada: dtEntrada,
+            codigoMesa: codigo,
+            observacao: 'Check-in ativo retaguarda',
+          );
+
+          final int? minutosDesdeUltimo = dtUltimoConsumo != null
+              ? agora.difference(dtUltimoConsumo).inMinutes
+              : null;
+
+          PedidoResumo? ultimoPedido;
+          if (dtUltimoConsumo != null) {
+            ultimoPedido = PedidoResumo(
+              id: 1,
+              empresaId: config.empresaId,
+              mesaId: id,
+              dataHoraLancamento: dtUltimoConsumo,
+              valorTotal: totalConsumido,
+              status: 'F',
+            );
+          }
+
+          consumoResumo = ConsumoMesaResumo(
+            mesaId: id,
+            codigoMesa: codigo,
+            dataCheckIn: dtEntrada,
+            ultimoPedido: ultimoPedido,
+            minutosDesdeUltimoPedido: minutosDesdeUltimo,
+            valorUltimoPedido: totalConsumido,
+            valorTotalPedidos: totalConsumido,
+            quantidadePedidos: (totalConsumido > 0 || dtUltimoConsumo != null) ? 1 : 0,
+          );
+        }
+
+        lista.add(
+          Mesa(
+            id: id,
+            codigo: codigo.isNotEmpty ? codigo : id.toString(),
+            descricao: 'Mesa $codigo',
+            numeroPessoas: qtdPessoas > 0 ? qtdPessoas : 4,
+            isOcupada: isOcupada,
+            ingressoAtual: ingresso,
+            tempoDecorrido: decorrido,
+            statusPermanencia: statusPerm,
+            consumoResumo: consumoResumo,
+          ),
+        );
+      }
+
+      await q.close();
+      await db.detach();
+
+      if (lista.isNotEmpty) {
+        return lista;
+      }
+    } catch (e) {
+      debugPrint('FbDb nativo: erro ao consultar CTE mesas/ingressos: $e');
+    }
+
+    // 2. Se for Windows Desktop, tenta via ISQL como contingência
+    if (!kIsWeb && Platform.isWindows) {
+      final isqlPath = _obterCaminhoIsql();
+      if (isqlPath != null) {
+        final stringConexao = _montarStringConexao(config);
+        const sqlIsql = '''
+SET HEADING OFF;
+WITH MESAS AS (
+  SELECT MES.MSA_ID, MES.MSA_CODIGO FROM TB_MESA MES WHERE MES.MSA_STATUS = 'A'
+),
+INGRESSOS AS (
+  SELECT ING.ING_CODIGO, ING.ING_DT_ENTRADA FROM TB_INGRESSO ING WHERE ING.ING_STATUS = 'E' AND ING.ING_DT_SAIDA IS NULL
+)
+SELECT
+  MSA_ID || ';' ||
+  TRIM(MSA_CODIGO) || ';' ||
+  COALESCE(TRIM(ING_CODIGO), '') || ';' ||
+  COALESCE(CAST(ING_DT_ENTRADA AS VARCHAR(30)), '') || ';' ||
+  COALESCE(CAST((SELECT SUM(PV.PEV_VALOR_TOTAL) FROM TB_PEDIDO_VENDA PV WHERE PV.PEV_STATUS <> 'C' AND PV.PEV_DT_LANCAMENTO >= INGRESSOS.ING_DT_ENTRADA AND PV.PEV_MESA = ING_CODIGO) AS VARCHAR(30)), '0') || ';' ||
+  COALESCE(CAST((SELECT MAX(I.PEVI_DT_LANCAMENTO) FROM TB_PEDIDO_VENDA PV INNER JOIN TB_PEDIDO_VENDA_ITEM I ON I.PEVI_EMPRESA = PV.PEV_EMPRESA AND I.PEVI_PEDIDO_VENDA = PV.PEV_ID WHERE PV.PEV_STATUS <> 'C' AND PV.PEV_DT_LANCAMENTO >= INGRESSOS.ING_DT_ENTRADA AND PV.PEV_MESA = INGRESSOS.ING_CODIGO) AS VARCHAR(30)), '') || ';' ||
+  COALESCE(CAST((SELECT SUM(PV.PEV_QTDE_PESSOAS) FROM TB_PEDIDO_VENDA PV WHERE PV.PEV_STATUS <> 'C' AND PV.PEV_DT_LANCAMENTO >= INGRESSOS.ING_DT_ENTRADA AND PV.PEV_MESA = INGRESSOS.ING_CODIGO) AS VARCHAR(10)), '0')
+FROM MESAS
+LEFT JOIN INGRESSOS ON INGRESSOS.ING_CODIGO = MESAS.MSA_ID
+ORDER BY MSA_ID;
+''';
+        try {
+          final process = await Process.start(
+            isqlPath,
+            ['-u', user, '-p', password, '-q', stringConexao],
+            runInShell: false,
+          );
+
+          process.stdin.writeln(sqlIsql);
+          process.stdin.writeln('QUIT;');
+          await process.stdin.flush();
+          await process.stdin.close();
+
+          final output = await process.stdout.transform(systemEncoding.decoder).join();
+          final exitCode = await process.exitCode;
+
+          if (exitCode == 0) {
+            final List<Mesa> lista = [];
+            final linhas = const LineSplitter().convert(output);
+            for (final linha in linhas) {
+              final trim = linha.trim();
+              if (trim.isEmpty || trim.startsWith('Database:') || trim.startsWith('SQL>')) continue;
+
+              final partes = trim.split(';');
+              if (partes.length >= 7) {
+                final int id = int.tryParse(partes[0].trim()) ?? 0;
+                final String codigo = partes[1].trim();
+                final String dtEntradaStr = partes[3].trim();
+                final DateTime? dtEntrada = dtEntradaStr.isNotEmpty ? DateTime.tryParse(dtEntradaStr) : null;
+                final double totalConsumido = double.tryParse(partes[4].trim().replaceAll(',', '.')) ?? 0.0;
+                final String dtUltimoConsumoStr = partes[5].trim();
+                final DateTime? dtUltimoConsumo = dtUltimoConsumoStr.isNotEmpty ? DateTime.tryParse(dtUltimoConsumoStr) : null;
+                final int qtdPessoas = int.tryParse(partes[6].trim()) ?? 0;
+
+                if (id <= 0 && codigo.isEmpty) continue;
+
+                final bool isOcupada = dtEntrada != null;
+                Duration decorrido = Duration.zero;
+                StatusPermanencia statusPerm = StatusPermanencia.livre;
+                Ingresso? ingresso;
+                ConsumoMesaResumo? consumoResumo;
+
+                if (isOcupada) {
+                  decorrido = agora.difference(dtEntrada);
+                  statusPerm = _calcularStatus(decorrido, config);
+                  ingresso = Ingresso(
+                    empresaId: config.empresaId,
+                    id: id,
+                    status: 'E',
+                    dtEntrada: dtEntrada,
+                    codigoMesa: codigo,
+                    observacao: 'Check-in ativo retaguarda',
+                  );
+
+                  final int? minutosDesdeUltimo = dtUltimoConsumo != null
+                      ? agora.difference(dtUltimoConsumo).inMinutes
+                      : null;
+
+                  PedidoResumo? ultimoPedido;
+                  if (dtUltimoConsumo != null) {
+                    ultimoPedido = PedidoResumo(
+                      id: 1,
+                      empresaId: config.empresaId,
+                      mesaId: id,
+                      dataHoraLancamento: dtUltimoConsumo,
+                      valorTotal: totalConsumido,
+                      status: 'F',
+                    );
+                  }
+
+                  consumoResumo = ConsumoMesaResumo(
+                    mesaId: id,
+                    codigoMesa: codigo,
+                    dataCheckIn: dtEntrada,
+                    ultimoPedido: ultimoPedido,
+                    minutosDesdeUltimoPedido: minutosDesdeUltimo,
+                    valorUltimoPedido: totalConsumido,
+                    valorTotalPedidos: totalConsumido,
+                    quantidadePedidos: (totalConsumido > 0 || dtUltimoConsumo != null) ? 1 : 0,
+                  );
+                }
+
+                lista.add(
+                  Mesa(
+                    id: id,
+                    codigo: codigo.isNotEmpty ? codigo : id.toString(),
+                    descricao: 'Mesa $codigo',
+                    numeroPessoas: qtdPessoas > 0 ? qtdPessoas : 4,
+                    isOcupada: isOcupada,
+                    ingressoAtual: ingresso,
+                    tempoDecorrido: decorrido,
+                    statusPermanencia: statusPerm,
+                    consumoResumo: consumoResumo,
+                  ),
+                );
+              }
+            }
+
+            if (lista.isNotEmpty) {
+              return lista;
+            }
+          }
+        } catch (e) {
+          debugPrint('ISQL fallback: erro ao consultar CTE mesas/ingressos: $e');
+        }
+      }
+    }
+
+    return [];
+  }
+
+  /// Executa o INSERT diretamente na TB_INGRESSO do Firebird no momento do Check-in:
+  /// - Status = 'E'
+  /// - Data/hora de entrada preenchida
+  /// - ING_CODIGO = mesa.id (para o JOIN do CTE: ingressos.ing_codigo = mesas.msa_id)
+  Future<void> executarCheckInFirebird({
+    required AppConfig config,
+    required Mesa mesa,
+    required DateTime dataHoraEntrada,
+    String? observacao,
+  }) async {
+    final dtEntradaSql = TimeFormatter.formatDateTimeSql(dataHoraEntrada);
+    final dtEmissaoSql = TimeFormatter.formatDateSql(dataHoraEntrada);
+    final hrEventoSql = TimeFormatter.formatTime(dataHoraEntrada);
+    final obs = (observacao ?? 'Check-in efetuado via App').replaceAll("'", "''");
+
+    final sql = '''
+INSERT INTO TB_INGRESSO (
+    ING_EMPRESA,
+    ING_ID,
+    ING_STATUS,
+    ING_USUARIO,
+    ING_DT_LANCAMENTO,
+    ING_DT_EMISSAO,
+    ING_DT_EVENTO,
+    ING_HR_EVENTO,
+    ING_DT_ENTRADA,
+    ING_DT_SAIDA,
+    ING_DURACAO,
+    ING_PESSOA,
+    ING_TIPO_INGRESSO,
+    ING_VALOR,
+    ING_OBSERVACAO,
+    ING_PEDIDO,
+    ING_CODIGO,
+    ING_TOTAL_RECEBIDO,
+    ING_TOTAL_PRODUTOS,
+    ING_VALOR_DIFERENCA,
+    ING_CAIXA,
+    ING_FECHAMENTO,
+    ING_TROCO,
+    ING_TIPO_TROCO,
+    ING_GERAR_FINANCEIRO
+) VALUES (
+    ${config.empresaId},
+    (SELECT COALESCE(MAX(ING_ID), 0) + 1 FROM TB_INGRESSO WHERE ING_EMPRESA = ${config.empresaId}),
+    'E',
+    1,
+    '$dtEntradaSql',
+    '$dtEmissaoSql',
+    '$dtEmissaoSql',
+    '$hrEventoSql',
+    '$dtEntradaSql',
+    NULL,
+    0,
+    NULL,
+    1,
+    0.00,
+    '$obs',
+    NULL,
+    '${mesa.id}',
+    0.00,
+    0.00,
+    0.00,
+    1,
+    NULL,
+    0.00,
+    NULL,
+    'N'
+);
+''';
+
+    await executarSqlDiretoNoFirebird(config: config, sql: sql);
+  }
+
+  /// Executa o UPDATE diretamente na TB_INGRESSO do Firebird no momento do Check-out:
+  /// - Status = 'F'
+  /// - Data/hora de saída preenchida
+  /// - Duração em minutos preenchida
+  Future<void> executarCheckOutFirebird({
+    required AppConfig config,
+    required Mesa mesa,
+    required DateTime dataHoraSaida,
+  }) async {
+    final DateTime dataEntrada = mesa.horaEntrada ?? dataHoraSaida;
+    final int duracaoMinutos = dataHoraSaida.difference(dataEntrada).inMinutes;
+    final dtSaidaSql = TimeFormatter.formatDateTimeSql(dataHoraSaida);
+
+    final sql = '''
+UPDATE TB_INGRESSO
+SET ING_STATUS = 'F',
+    ING_DT_SAIDA = '$dtSaidaSql',
+    ING_DURACAO = $duracaoMinutos,
+    ING_OBSERVACAO = COALESCE(ING_OBSERVACAO, '') || ' | Saída registrada via App'
+WHERE ING_EMPRESA = ${config.empresaId}
+  AND (ING_CODIGO = '${mesa.id}' OR ING_CODIGO = '${mesa.codigo}')
+  AND (ING_STATUS = 'E' OR ING_STATUS = 'A')
+  AND ING_DT_SAIDA IS NULL;
+''';
+
+    await executarSqlDiretoNoFirebird(config: config, sql: sql);
   }
 
   /// Consulta pedidos da mesa na retaguarda Firebird 5.0 no modelo pré-pago:

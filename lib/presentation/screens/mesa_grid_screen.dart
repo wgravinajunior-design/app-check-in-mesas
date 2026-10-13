@@ -307,12 +307,12 @@ class _MesaGridScreenState extends State<MesaGridScreen> {
                   onPressed: () => _abrirConfiguracoes(context),
                 ),
 
-                // Recarregar
+                // Recarregar Manual
                 IconButton(
                   visualDensity: VisualDensity.compact,
                   padding: const EdgeInsets.symmetric(horizontal: 2),
                   constraints: const BoxConstraints(minWidth: 34, minHeight: 34),
-                  tooltip: 'Recarregar Dados',
+                  tooltip: 'Recarregar Dados (Auto a cada 2 min)',
                   icon: const Icon(Icons.refresh_rounded, size: 20),
                   onPressed: () {
                     if (sincronizarMesas) {
@@ -321,6 +321,13 @@ class _MesaGridScreenState extends State<MesaGridScreen> {
                     if (sincronizarComandas) {
                       context.read<ComandaCubit>().carregarComandas(config: config);
                     }
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Atualizando dados da retaguarda...'),
+                        duration: Duration(seconds: 1),
+                        behavior: SnackBarBehavior.floating,
+                      ),
+                    );
                   },
                 ),
                 const SizedBox(width: 4),
