@@ -236,3 +236,29 @@ WHERE P.PEV_EMPRESA = 1
   AND COALESCE(P.PEV_STATUS, '') != 'C'
 GROUP BY P.PEV_EMPRESA, P.PEV_MESA;
 
+-- 4.4. Consulta Detalhada por Itens: Total Consumo, Qtd Pessoas, Último Consumo, Tempo e Último Produto
+-- Corrige a duplicação de valores do JOIN usando SUM(i.pevi_valor_total), captura o último produto consumido
+-- e calcula o tempo decorrido em minutos via DATEDIFF.
+SELECT
+    SUM(i.pevi_valor_total) AS TOTAL,
+    MAX(pv.pev_qtde_pessoas) AS QTD_PESSOAS,
+    MAX(i.pevi_dt_lancamento) AS ULTIMO_CONSUMO,
+    DATEDIFF(MINUTE FROM MAX(i.pevi_dt_lancamento) TO CURRENT_TIMESTAMP) AS MINUTOS_ULTIMO_CONSUMO,
+    (
+        SELECT FIRST 1 i2.pevi_descricao
+        FROM tb_pedido_venda pv2
+        INNER JOIN tb_pedido_venda_item i2 
+            ON i2.pevi_empresa = pv2.pev_empresa 
+           AND i2.pevi_pedido_venda = pv2.pev_id
+        WHERE pv2.pev_status <> 'C' 
+          AND pv2.pev_dt_lancamento >= :data_ingresso 
+          AND pv2.pev_mesa = :id_mesa
+        ORDER BY i2.pevi_dt_lancamento DESC, i2.pevi_sequencia DESC
+    ) AS ULTIMO_PRODUTO
+FROM tb_pedido_venda pv
+INNER JOIN tb_pedido_venda_item i 
+    ON i.pevi_empresa = pv.pev_empresa 
+   AND i.pevi_pedido_venda = pv.pev_id
+WHERE pv.pev_status <> 'C' 
+  AND pv.pev_dt_lancamento >= :data_ingresso 
+  AND pv.pev_mesa = :id_mesa;

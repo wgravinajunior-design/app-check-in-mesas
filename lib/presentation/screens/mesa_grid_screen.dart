@@ -62,25 +62,39 @@ class _MesaGridScreenState extends State<MesaGridScreen> {
     if (info.temAtualizacao) {
       AppUpdateService.exibirDialogAtualizacao(context, info);
     } else if (info.erroConexao && !silencioso) {
+      ScaffoldMessenger.of(context).clearSnackBars();
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Falha ao checar atualizações: ${info.mensagemErro ?? "Erro de conexão"}'),
+          content: Row(
+            children: [
+              const Icon(Icons.info_outline_rounded, color: Colors.amberAccent, size: 20),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text('Falha ao checar atualizações: ${info.mensagemErro ?? "Erro de conexão"}'),
+              ),
+            ],
+          ),
           backgroundColor: Colors.orange.shade900,
           behavior: SnackBarBehavior.floating,
+          duration: const Duration(seconds: 4),
         ),
       );
     } else if (!silencioso) {
+      ScaffoldMessenger.of(context).clearSnackBars();
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('CheckMesa já está na versão mais recente (v${info.versaoAtual})!'),
-          behavior: SnackBarBehavior.floating,
-          action: SnackBarAction(
-            label: 'BAIXAR APK',
-            textColor: Colors.amber,
-            onPressed: () {
-              AppUpdateService.exibirDialogAtualizacao(context, info);
-            },
+          content: Row(
+            children: [
+              const Icon(Icons.check_circle_rounded, color: Colors.greenAccent, size: 20),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text('CheckMesa já está na versão mais recente (v${info.versaoAtual})!'),
+              ),
+            ],
           ),
+          backgroundColor: const Color(0xFF1E293B),
+          behavior: SnackBarBehavior.floating,
+          duration: const Duration(seconds: 3),
         ),
       );
     }
