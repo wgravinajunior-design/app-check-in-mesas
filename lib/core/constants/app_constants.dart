@@ -1,7 +1,12 @@
 class AppConstants {
-  // Configurações padrão de permanência em minutos
-  static const int defaultTempoAlertaMinutos = 90; // 1h30m
-  static const int defaultTempoLimiteMinutos = 120; // 2h00m
+  // Configurações padrão de tempo sem pedidos (minutos)
+  static const int defaultTempoVerdeMinutos = 30; // Até 30 min sem pedir: Verde (Normal)
+  static const int defaultTempoAmareloMinutos = 60; // Até 60 min sem pedir: Amarelo (Alerta)
+  static const int defaultTempoVermelhoMinutos = 90; // A partir / Limite: Vermelho (Crítico)
+
+  // Compatibilidade legada de permanência
+  static const int defaultTempoAlertaMinutos = 60;
+  static const int defaultTempoLimiteMinutos = 90;
   static const int defaultTotalMesas = 75; // Total de mesas cadastradas na Mansão da Torre
   static const int defaultEmpresaId = 1;
 
@@ -21,6 +26,9 @@ class AppConstants {
   static const String statusMesaOcupada = 'O'; // Ocupada
 
   // Chaves do SharedPreferences
+  static const String keyTempoVerde = 'config_tempo_sem_pedido_verde';
+  static const String keyTempoAmarelo = 'config_tempo_sem_pedido_amarelo';
+  static const String keyTempoVermelho = 'config_tempo_sem_pedido_vermelho';
   static const String keyTempoAlerta = 'config_tempo_alerta';
   static const String keyTempoLimite = 'config_tempo_limite';
   static const String keyTotalMesas = 'config_total_mesas';

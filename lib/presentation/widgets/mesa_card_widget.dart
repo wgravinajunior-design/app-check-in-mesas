@@ -16,34 +16,36 @@ class MesaCardWidget extends StatelessWidget {
     this.config,
   });
 
-  /// Determina as cores e o ícone do tempo do último pedido conforme a configuração
+  /// Determina as cores e o ícone do tempo do último pedido conforme a configuração semafórica
   static ({Color corTexto, Color corFundo, Color corBorda, IconData icone}) _obterEstiloTempoPedido(
     int minutos,
-    int tempoAlerta,
-    int tempoLimite,
+    int tempoVerde,
+    int tempoAmarelo,
+    int tempoVermelho,
   ) {
-    if (minutos <= tempoAlerta) {
-      // Normal / recente
+    if (minutos <= tempoVerde) {
+      // Normal / recente -> Verde
       return (
         corTexto: const Color(0xFF15803D), // Verde escuro
         corFundo: const Color(0xFFDCFCE7), // Fundo verde claro
         corBorda: const Color(0xFF86EFAC),
         icone: Icons.fastfood_rounded,
       );
-    } else if (minutos <= tempoLimite) {
-      // Alerta de tolerância
+    } else if (minutos <= tempoAmarelo) {
+      // Alerta de tolerância -> Amarelo / Âmbar
       return (
-        corTexto: const Color(0xFFC2410C), // Laranja alerta
+        corTexto: const Color(0xFFB45309), // Âmbar escuro
         corFundo: const Color(0xFFFEF3C7), // Fundo amarelo claro
         corBorda: const Color(0xFFFCD34D),
         icone: Icons.warning_amber_rounded,
       );
     } else {
-      // Limite excedido
+      // Limite excedido -> Vermelho
+      final bool critico = minutos >= tempoVermelho;
       return (
-        corTexto: const Color(0xFFB91C1C), // Vermelho perigo/excedido
-        corFundo: const Color(0xFFFEE2E2), // Fundo vermelho suave
-        corBorda: const Color(0xFFFCA5A5),
+        corTexto: critico ? const Color(0xFF991B1B) : const Color(0xFFB91C1C), // Vermelho perigo/excedido
+        corFundo: critico ? const Color(0xFFFEE2E2) : const Color(0xFFFEF2F2),
+        corBorda: critico ? const Color(0xFFEF4444) : const Color(0xFFFCA5A5),
         icone: Icons.alarm_on_rounded,
       );
     }
@@ -56,8 +58,9 @@ class MesaCardWidget extends StatelessWidget {
     final corFundo = status.corFundoClara;
     final bool isExcedida = status == StatusPermanencia.limiteExcedido;
 
-    final int tempoAlerta = config?.tempoAlertaMinutos ?? 90;
-    final int tempoLimite = config?.tempoLimiteMinutos ?? 120;
+    final int tempoVerde = config?.tempoVerdeMinutos ?? 30;
+    final int tempoAmarelo = config?.tempoAmareloMinutos ?? 60;
+    final int tempoVermelho = config?.tempoVermelhoMinutos ?? 90;
 
     return Card(
       elevation: isExcedida ? 4 : 1.5,
@@ -238,8 +241,9 @@ class MesaCardWidget extends StatelessWidget {
                             final int minutosUltimo = mesa.minutosDesdeUltimoPedido ?? 0;
                             final estilo = _obterEstiloTempoPedido(
                               minutosUltimo,
-                              tempoAlerta,
-                              tempoLimite,
+                              tempoVerde,
+                              tempoAmarelo,
+                              tempoVermelho,
                             );
 
                             return Column(
@@ -314,26 +318,26 @@ class MesaCardWidget extends StatelessWidget {
                       : Builder(
                           builder: (context) {
                             final int minutosSemPedido = mesa.tempoDecorrido.inMinutes;
-                            final bool temAlerta = minutosSemPedido > tempoAlerta;
                             final estilo = _obterEstiloTempoPedido(
                               minutosSemPedido,
-                              tempoAlerta,
-                              tempoLimite,
+                              tempoVerde,
+                              tempoAmarelo,
+                              tempoVermelho,
                             );
 
                             return Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1.5),
+                              padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
                               decoration: BoxDecoration(
-                                color: temAlerta ? estilo.corFundo : Colors.transparent,
+                                color: estilo.corFundo,
                                 borderRadius: BorderRadius.circular(4),
-                                border: temAlerta ? Border.all(color: estilo.corBorda, width: 0.8) : null,
+                                border: Border.all(color: estilo.corBorda, width: 0.8),
                               ),
                               child: Row(
                                 children: [
                                   Icon(
-                                    temAlerta ? estilo.icone : Icons.access_time_rounded,
+                                    estilo.icone,
                                     size: 11,
-                                    color: temAlerta ? estilo.corTexto : const Color(0xFF94A3B8),
+                                    color: estilo.corTexto,
                                   ),
                                   const SizedBox(width: 4),
                                   Expanded(
@@ -343,9 +347,8 @@ class MesaCardWidget extends StatelessWidget {
                                           : 'Sem pedidos após check-in',
                                       style: TextStyle(
                                         fontSize: 9,
-                                        fontWeight: temAlerta ? FontWeight.bold : FontWeight.normal,
-                                        color: temAlerta ? estilo.corTexto : const Color(0xFF64748B),
-                                        fontStyle: temAlerta ? FontStyle.normal : FontStyle.italic,
+                                        fontWeight: FontWeight.bold,
+                                        color: estilo.corTexto,
                                       ),
                                       maxLines: 1,
                                       overflow: TextOverflow.ellipsis,

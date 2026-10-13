@@ -2,8 +2,9 @@ import 'package:equatable/equatable.dart';
 import '../../core/constants/app_constants.dart';
 
 class AppConfig extends Equatable {
-  final int tempoAlertaMinutos;
-  final int tempoLimiteMinutos;
+  final int tempoVerdeMinutos;
+  final int tempoAmareloMinutos;
+  final int tempoVermelhoMinutos;
   final int totalMesas;
   final int empresaId;
   final String apiUrl;
@@ -20,9 +21,14 @@ class AppConfig extends Equatable {
   final bool sincronizarComandas;
   final int totalComandas;
 
+  // Getters para compatibilidade legada
+  int get tempoAlertaMinutos => tempoAmareloMinutos;
+  int get tempoLimiteMinutos => tempoVermelhoMinutos;
+
   const AppConfig({
-    this.tempoAlertaMinutos = AppConstants.defaultTempoAlertaMinutos,
-    this.tempoLimiteMinutos = AppConstants.defaultTempoLimiteMinutos,
+    this.tempoVerdeMinutos = AppConstants.defaultTempoVerdeMinutos,
+    this.tempoAmareloMinutos = AppConstants.defaultTempoAmareloMinutos,
+    this.tempoVermelhoMinutos = AppConstants.defaultTempoVermelhoMinutos,
     this.totalMesas = AppConstants.defaultTotalMesas,
     this.empresaId = AppConstants.defaultEmpresaId,
     this.apiUrl = 'http://localhost:8080/api',
@@ -55,6 +61,9 @@ class AppConfig extends Equatable {
   }
 
   AppConfig copyWith({
+    int? tempoVerdeMinutos,
+    int? tempoAmareloMinutos,
+    int? tempoVermelhoMinutos,
     int? tempoAlertaMinutos,
     int? tempoLimiteMinutos,
     int? totalMesas,
@@ -74,8 +83,9 @@ class AppConfig extends Equatable {
     int? totalComandas,
   }) {
     return AppConfig(
-      tempoAlertaMinutos: tempoAlertaMinutos ?? this.tempoAlertaMinutos,
-      tempoLimiteMinutos: tempoLimiteMinutos ?? this.tempoLimiteMinutos,
+      tempoVerdeMinutos: tempoVerdeMinutos ?? this.tempoVerdeMinutos,
+      tempoAmareloMinutos: tempoAmareloMinutos ?? tempoAlertaMinutos ?? this.tempoAmareloMinutos,
+      tempoVermelhoMinutos: tempoVermelhoMinutos ?? tempoLimiteMinutos ?? this.tempoVermelhoMinutos,
       totalMesas: totalMesas ?? this.totalMesas,
       empresaId: empresaId ?? this.empresaId,
       apiUrl: apiUrl ?? this.apiUrl,
@@ -96,8 +106,9 @@ class AppConfig extends Equatable {
 
   @override
   List<Object?> get props => [
-        tempoAlertaMinutos,
-        tempoLimiteMinutos,
+        tempoVerdeMinutos,
+        tempoAmareloMinutos,
+        tempoVermelhoMinutos,
         totalMesas,
         empresaId,
         apiUrl,

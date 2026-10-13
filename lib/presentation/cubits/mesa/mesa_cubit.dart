@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import '../../../core/services/audio_alert_service.dart';
 import '../../../domain/entities/app_config.dart';
 import '../../../domain/entities/consumo_mesa_resumo.dart';
 import '../../../domain/entities/ingresso.dart';
@@ -31,16 +32,7 @@ class MesaCubit extends Cubit<MesaState> {
     if (liberadas.isEmpty) return;
 
     if (_config.alertaSonoro) {
-      try {
-        HapticFeedback.vibrate();
-        HapticFeedback.heavyImpact();
-        SystemSound.play(SystemSoundType.alert);
-        Future.delayed(const Duration(milliseconds: 250), () {
-          SystemSound.play(SystemSoundType.alert);
-        });
-      } catch (e) {
-        debugPrint('Erro ao acionar som/vibração: $e');
-      }
+      AudioAlertService.tocarSomMesaLiberada();
     }
 
     if (!_mesasLiberadasController.isClosed) {
@@ -340,12 +332,12 @@ class MesaCubit extends Cubit<MesaState> {
   StatusPermanencia _calcularStatusPermanencia(Duration duracao, {int? minutosUltimoPedido}) {
     final int minutos = minutosUltimoPedido ?? duracao.inMinutes;
 
-    if (minutos <= _config.tempoAlertaMinutos) {
-      return StatusPermanencia.normal; // Até alerta -> Azul / Neutro
-    } else if (minutos <= _config.tempoLimiteMinutos) {
-      return StatusPermanencia.alertaTolerancia; // Alerta até limite -> Amarelo / Laranja
+    if (minutos <= _config.tempoVerdeMinutos) {
+      return StatusPermanencia.normal; // Até tempo verde -> Verde (Em atendimento / pedido recente)
+    } else if (minutos <= _config.tempoAmareloMinutos) {
+      return StatusPermanencia.alertaTolerancia; // Até tempo amarelo -> Amarelo (Alerta sem pedir)
     } else {
-      return StatusPermanencia.limiteExcedido; // Acima do limite -> Vermelho em destaque
+      return StatusPermanencia.limiteExcedido; // Acima -> Vermelho (Limite excedido / crítico)
     }
   }
 

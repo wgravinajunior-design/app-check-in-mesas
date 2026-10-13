@@ -274,9 +274,9 @@ ORDER BY MSA_ID;
 
   StatusPermanencia _calcularStatus(Duration duracao, AppConfig config, {int? minutosUltimoPedido}) {
     final int minutos = minutosUltimoPedido ?? duracao.inMinutes;
-    if (minutos <= config.tempoAlertaMinutos) {
+    if (minutos <= config.tempoVerdeMinutos) {
       return StatusPermanencia.normal;
-    } else if (minutos <= config.tempoLimiteMinutos) {
+    } else if (minutos <= config.tempoAmareloMinutos) {
       return StatusPermanencia.alertaTolerancia;
     } else {
       return StatusPermanencia.limiteExcedido;

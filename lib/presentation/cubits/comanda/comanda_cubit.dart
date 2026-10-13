@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import '../../../core/services/audio_alert_service.dart';
 import '../../../domain/entities/app_config.dart';
 import '../../../domain/entities/comanda.dart';
 import '../../../domain/entities/ingresso.dart';
@@ -155,9 +156,9 @@ class ComandaCubit extends Cubit<ComandaState> {
 
   StatusPermanencia _calcularStatus(Duration duracao) {
     final int minutos = duracao.inMinutes;
-    if (minutos <= _config.tempoAlertaMinutos) {
+    if (minutos <= _config.tempoVerdeMinutos) {
       return StatusPermanencia.normal;
-    } else if (minutos <= _config.tempoLimiteMinutos) {
+    } else if (minutos <= _config.tempoAmareloMinutos) {
       return StatusPermanencia.alertaTolerancia;
     } else {
       return StatusPermanencia.limiteExcedido;
@@ -234,6 +235,10 @@ class ComandaCubit extends Cubit<ComandaState> {
 
       _comandasAlertadas.remove(comanda.id);
       _comandasExcedidas.remove(comanda.id);
+
+      if (_config.alertaSonoro) {
+        AudioAlertService.tocarSomMesaLiberada();
+      }
 
       final List<Comanda> novas = estadoAtual.comandas.map((c) {
         if (c.id == comanda.id) {

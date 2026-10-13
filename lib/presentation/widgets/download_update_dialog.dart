@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 import 'package:open_filex/open_filex.dart';
 import 'package:path_provider/path_provider.dart';
@@ -9,8 +9,8 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../core/services/app_update_service.dart';
 import '../../core/theme/app_theme.dart';
 
-/// Modal animado com barra de progresso em tempo real que baixa o APK,
-/// aciona a instalação automática do Android e encerra o app antigo.
+/// Modal animado com barra de progresso em tempo real que baixa o pacote de atualização,
+/// aciona a instalação no Android ou extrai os arquivos no Windows.
 class DownloadUpdateDialog extends StatefulWidget {
   final AtualizacaoInfo info;
 
@@ -42,6 +42,8 @@ class _DownloadUpdateDialogState extends State<DownloadUpdateDialog> {
   bool _emDownload = true;
   bool _erro = false;
   String? _mensagemErro;
+  String? _caminhoArquivoSalvo;
+  String? _pastaAbertaWindows;
   StreamSubscription<List<int>>? _subscription;
   http.Client? _client;
   IOSink? _fileSink;
@@ -61,7 +63,9 @@ class _DownloadUpdateDialogState extends State<DownloadUpdateDialog> {
   }
 
   Future<void> _iniciarDownload() async {
-    final url = widget.info.urlDownloadApropriada ?? widget.info.urlDownloadApk;
+    final url = widget.info.urlDownloadApropriada ??
+        widget.info.urlDownloadApk ??
+        widget.info.urlReleaseHtml;
     if (url == null || url.isEmpty) {
       setState(() {
         _erro = true;
@@ -75,6 +79,7 @@ class _DownloadUpdateDialogState extends State<DownloadUpdateDialog> {
       setState(() {
         _statusTexto = 'Iniciando download da atualização...';
         _erro = false;
+        _emDownload = true;
       });
 
       _client = http.Client();
@@ -92,8 +97,7 @@ class _DownloadUpdateDialogState extends State<DownloadUpdateDialog> {
 
       _totalBytes = response.contentLength ?? 0;
 
-      final tempDir = await getTemporaryDirectory();
-      final bool isWindows = Platform.isWindows;
+      final bool isWindows = !kIsWeb && Platform.isWindows;
       final String extensao = isWindows
           ? (url.toLowerCase().contains('.zip') ? '.zip' : '.exe')
           : '.apk';
@@ -101,10 +105,23 @@ class _DownloadUpdateDialogState extends State<DownloadUpdateDialog> {
           ? 'CheckMesa-v${widget.info.versaoRemota}-Windows'
           : 'CheckMesa-v${widget.info.versaoRemota}';
       final nomeArquivo = '$prefixo$extensao';
-      final arquivoBaixado = File('${tempDir.path}/$nomeArquivo');
+
+      Directory pastaDestino = await getTemporaryDirectory();
+      if (isWindows) {
+        try {
+          final downloadsDir = await getDownloadsDirectory();
+          if (downloadsDir != null) {
+            pastaDestino = downloadsDir;
+          }
+        } catch (_) {}
+      }
+
+      final arquivoBaixado = File('${pastaDestino.path}/$nomeArquivo');
 
       if (await arquivoBaixado.exists()) {
-        await arquivoBaixado.delete();
+        try {
+          await arquivoBaixado.delete();
+        } catch (_) {}
       }
 
       _fileSink = arquivoBaixado.openWrite();
@@ -141,15 +158,16 @@ class _DownloadUpdateDialogState extends State<DownloadUpdateDialog> {
             setState(() {
               _progresso = 1.0;
               _emDownload = false;
+              _caminhoArquivoSalvo = arquivoBaixado.path;
               _statusTexto = isWindows
-                  ? 'Download concluído! Abrindo pacote de atualização...'
+                  ? 'Download concluído! Processando pacote...'
                   : 'Download concluído! Abrindo instalador...';
             });
 
             if (isWindows) {
               await _instalarWindowsEConcluir(arquivoBaixado.path, extensao == '.zip');
             } else {
-              await _instalarApkEFechar(arquivoBaixado.path);
+              await _instalarApk(arquivoBaixado.path);
             }
           }
         },
@@ -168,42 +186,76 @@ class _DownloadUpdateDialogState extends State<DownloadUpdateDialog> {
 
   Future<void> _instalarWindowsEConcluir(String caminhoArquivo, bool isZip) async {
     try {
-      final resultado = await OpenFilex.open(caminhoArquivo);
-      if (mounted) {
-        setState(() {
-          _statusTexto = isZip
-              ? 'Pacote de atualização baixado com sucesso! Arquivo aberto.'
-              : 'Instalador do Windows acionado (${resultado.message}).';
-        });
+      if (isZip) {
+        final arquivo = File(caminhoArquivo);
+        final pastaPai = arquivo.parent.path;
+        final pastaExtraida = '$pastaPai\\CheckMesa-v${widget.info.versaoRemota}';
+
+        bool extraido = false;
+        try {
+          final resTar = await Process.run('tar', ['-xf', caminhoArquivo, '-C', pastaPai]);
+          if (resTar.exitCode == 0) extraido = true;
+        } catch (_) {}
+
+        if (!extraido) {
+          try {
+            final resPs = await Process.run('powershell', [
+              '-NoProfile',
+              '-Command',
+              'Expand-Archive -Path "$caminhoArquivo" -DestinationPath "$pastaExtraida" -Force'
+            ]);
+            if (resPs.exitCode == 0) extraido = true;
+          } catch (_) {}
+        }
+
+        final pastaAbrir = (extraido && await Directory(pastaExtraida).exists())
+            ? pastaExtraida
+            : pastaPai;
+        _pastaAbertaWindows = pastaAbrir;
+
+        await Process.run('explorer.exe', [pastaAbrir]);
+
+        if (mounted) {
+          setState(() {
+            _statusTexto = extraido
+                ? 'Atualização baixada e extraída com sucesso na pasta:\n$pastaExtraida\n\nAbra o novo CheckMesa.exe nesta pasta para usar.'
+                : 'Pacote ZIP baixado com sucesso em:\n$caminhoArquivo\n\nA pasta foi aberta. Extraia e execute o novo CheckMesa.exe atualizado.';
+          });
+        }
+      } else {
+        final resultado = await OpenFilex.open(caminhoArquivo);
+        if (mounted) {
+          setState(() {
+            _statusTexto = 'Instalador acionado (${resultado.message}).';
+          });
+        }
       }
     } catch (e) {
       if (mounted) {
         setState(() {
-          _erro = true;
-          _mensagemErro = 'Arquivo salvo em: $caminhoArquivo. Erro ao abrir: $e';
+          _statusTexto = 'Arquivo salvo em: $caminhoArquivo. Você pode abri-lo manualmente no Explorer.';
         });
       }
     }
   }
 
-  Future<void> _instalarApkEFechar(String caminhoApk) async {
+  Future<void> _instalarApk(String caminhoApk) async {
     try {
       final resultado = await OpenFilex.open(
         caminhoApk,
         type: 'application/vnd.android.package-archive',
       );
 
-      if (resultado.type == ResultType.done) {
-        // Aguarda 1.5s para o instalador nativo do Android assumir a tela e fecha o app antigo
-        await Future.delayed(const Duration(milliseconds: 1500));
-        SystemNavigator.pop();
-      } else {
-        // Caso o Android precise de permissão especial de fontes desconhecidas ou retorne erro
-        if (mounted) {
+      if (mounted) {
+        if (resultado.type == ResultType.done) {
           setState(() {
-            _erro = true;
-            _mensagemErro =
-                'Instalador do Android acionado (${resultado.message}). Se o instalador não abriu, instale manualmente pelo arquivo baixado.';
+            _statusTexto =
+                'Instalador do Android iniciado!\nConfirme a instalação na tela do aparelho para atualizar o CheckMesa.';
+          });
+        } else {
+          setState(() {
+            _statusTexto =
+                'Instalador do Android acionado (${resultado.message}). Se a instalação não abrir, use o botão "Abrir Instalador" abaixo ou baixe pelo navegador.';
           });
         }
       }
@@ -211,15 +263,16 @@ class _DownloadUpdateDialogState extends State<DownloadUpdateDialog> {
       if (mounted) {
         setState(() {
           _erro = true;
-          _mensagemErro = 'Falha ao iniciar instalador: $e';
+          _mensagemErro = 'Falha ao iniciar o instalador do Android: $e';
         });
       }
     }
   }
 
   void _abrirNavegadorFallback() async {
-    if (widget.info.urlDownloadApk != null) {
-      final uri = Uri.parse(widget.info.urlDownloadApk!);
+    final url = widget.info.urlDownloadApropriada ?? widget.info.urlReleaseHtml;
+    if (url != null && url.isNotEmpty) {
+      final uri = Uri.parse(url);
       if (await canLaunchUrl(uri)) {
         await launchUrl(uri, mode: LaunchMode.externalApplication);
       }
@@ -231,6 +284,7 @@ class _DownloadUpdateDialogState extends State<DownloadUpdateDialog> {
     final mbRecebidos = (_bytesRecebidos / (1024 * 1024)).toStringAsFixed(1);
     final mbTotal = (_totalBytes / (1024 * 1024)).toStringAsFixed(1);
     final porcentagem = (_progresso * 100).toInt();
+    final bool isWindows = !kIsWeb && Platform.isWindows;
 
     return PopScope(
       canPop: !_emDownload,
@@ -329,13 +383,22 @@ class _DownloadUpdateDialogState extends State<DownloadUpdateDialog> {
                 ),
                 const SizedBox(height: 12),
 
-                Text(
-                  _statusTexto,
-                  style: const TextStyle(
-                    fontSize: 12,
-                    color: Color(0xFF475569),
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF1F5F9),
+                    borderRadius: BorderRadius.circular(8),
                   ),
-                  textAlign: TextAlign.center,
+                  child: Text(
+                    _statusTexto,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: Color(0xFF334155),
+                      height: 1.3,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
                 ),
               ] else ...[
                 Container(
@@ -359,15 +422,16 @@ class _DownloadUpdateDialogState extends State<DownloadUpdateDialog> {
               const SizedBox(height: 20),
 
               // Botões de ação
-              Row(
-                mainAxisAlignment: MainAxisAlignment.end,
+              Wrap(
+                alignment: WrapAlignment.end,
+                spacing: 8,
+                runSpacing: 8,
                 children: [
                   if (_erro) ...[
                     TextButton(
                       onPressed: () => Navigator.of(context).pop(),
                       child: const Text('Fechar'),
                     ),
-                    const SizedBox(width: 8),
                     ElevatedButton.icon(
                       onPressed: _abrirNavegadorFallback,
                       icon: const Icon(Icons.open_in_browser, size: 16),
@@ -383,17 +447,43 @@ class _DownloadUpdateDialogState extends State<DownloadUpdateDialog> {
                       child: const Text('Cancelar'),
                     ),
                   ] else ...[
-                    ElevatedButton.icon(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppTheme.corMesaNormal,
-                        foregroundColor: Colors.white,
-                      ),
-                      onPressed: () {
-                        SystemNavigator.pop();
-                      },
-                      icon: const Icon(Icons.exit_to_app, size: 16),
-                      label: const Text('Fechar App'),
+                    // Download concluído com sucesso
+                    TextButton(
+                      onPressed: () => Navigator.of(context).pop(),
+                      child: const Text('Fechar'),
                     ),
+                    OutlinedButton.icon(
+                      onPressed: _abrirNavegadorFallback,
+                      icon: const Icon(Icons.open_in_browser, size: 16),
+                      label: const Text('Baixar no Navegador'),
+                    ),
+                    if (isWindows)
+                      ElevatedButton.icon(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppTheme.corMesaNormal,
+                          foregroundColor: Colors.white,
+                        ),
+                        onPressed: () {
+                          final destino = _pastaAbertaWindows ?? _caminhoArquivoSalvo;
+                          if (destino != null) {
+                            Process.run('explorer.exe', [destino]);
+                          }
+                        },
+                        icon: const Icon(Icons.folder_open, size: 16),
+                        label: const Text('Abrir Pasta'),
+                      )
+                    else if (_caminhoArquivoSalvo != null)
+                      ElevatedButton.icon(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppTheme.corMesaNormal,
+                          foregroundColor: Colors.white,
+                        ),
+                        onPressed: () {
+                          _instalarApk(_caminhoArquivoSalvo!);
+                        },
+                        icon: const Icon(Icons.refresh_rounded, size: 16),
+                        label: const Text('Reabrir Instalador'),
+                      ),
                   ],
                 ],
               ),

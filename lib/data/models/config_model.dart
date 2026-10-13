@@ -3,8 +3,9 @@ import '../../domain/entities/app_config.dart';
 
 class ConfigModel extends AppConfig {
   const ConfigModel({
-    super.tempoAlertaMinutos,
-    super.tempoLimiteMinutos,
+    super.tempoVerdeMinutos,
+    super.tempoAmareloMinutos,
+    super.tempoVermelhoMinutos,
     super.totalMesas,
     super.empresaId,
     super.apiUrl,
@@ -18,8 +19,9 @@ class ConfigModel extends AppConfig {
 
   factory ConfigModel.fromEntity(AppConfig entity) {
     return ConfigModel(
-      tempoAlertaMinutos: entity.tempoAlertaMinutos,
-      tempoLimiteMinutos: entity.tempoLimiteMinutos,
+      tempoVerdeMinutos: entity.tempoVerdeMinutos,
+      tempoAmareloMinutos: entity.tempoAmareloMinutos,
+      tempoVermelhoMinutos: entity.tempoVermelhoMinutos,
       totalMesas: entity.totalMesas,
       empresaId: entity.empresaId,
       apiUrl: entity.apiUrl,
@@ -34,8 +36,11 @@ class ConfigModel extends AppConfig {
 
   Map<String, dynamic> toJson() {
     return {
-      'tempoAlertaMinutos': tempoAlertaMinutos,
-      'tempoLimiteMinutos': tempoLimiteMinutos,
+      'tempoVerdeMinutos': tempoVerdeMinutos,
+      'tempoAmareloMinutos': tempoAmareloMinutos,
+      'tempoVermelhoMinutos': tempoVermelhoMinutos,
+      'tempoAlertaMinutos': tempoAmareloMinutos,
+      'tempoLimiteMinutos': tempoVermelhoMinutos,
       'totalMesas': totalMesas,
       'empresaId': empresaId,
       'apiUrl': apiUrl,
@@ -50,8 +55,9 @@ class ConfigModel extends AppConfig {
 
   factory ConfigModel.fromJson(Map<String, dynamic> json) {
     return ConfigModel(
-      tempoAlertaMinutos: json['tempoAlertaMinutos'] as int? ?? AppConstants.defaultTempoAlertaMinutos,
-      tempoLimiteMinutos: json['tempoLimiteMinutos'] as int? ?? AppConstants.defaultTempoLimiteMinutos,
+      tempoVerdeMinutos: json['tempoVerdeMinutos'] as int? ?? AppConstants.defaultTempoVerdeMinutos,
+      tempoAmareloMinutos: json['tempoAmareloMinutos'] as int? ?? json['tempoAlertaMinutos'] as int? ?? AppConstants.defaultTempoAmareloMinutos,
+      tempoVermelhoMinutos: json['tempoVermelhoMinutos'] as int? ?? json['tempoLimiteMinutos'] as int? ?? AppConstants.defaultTempoVermelhoMinutos,
       totalMesas: json['totalMesas'] as int? ?? AppConstants.defaultTotalMesas,
       empresaId: json['empresaId'] as int? ?? AppConstants.defaultEmpresaId,
       apiUrl: json['apiUrl'] as String? ?? 'http://localhost:8080/api',

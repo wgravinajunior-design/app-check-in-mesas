@@ -1,8 +1,8 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../core/services/app_update_service.dart';
+import '../../core/services/audio_alert_service.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/utils/barcode_parser.dart';
 import '../../core/utils/time_formatter.dart';
@@ -66,9 +66,8 @@ class _MesaGridScreenState extends State<MesaGridScreen> {
   void _mostrarPopupMesasLiberadas(List<Mesa> liberadas) {
     if (!mounted) return;
 
-    // Retorno de som e vibração garantido na tela
-    HapticFeedback.vibrate();
-    SystemSound.play(SystemSoundType.alert);
+    // Retorno de som alto e vibração na tela
+    AudioAlertService.tocarSomMesaLiberada();
 
     showDialog(
       context: context,

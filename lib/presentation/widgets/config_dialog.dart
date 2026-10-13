@@ -22,8 +22,9 @@ class ConfigDialog extends StatefulWidget {
 }
 
 class _ConfigDialogState extends State<ConfigDialog> {
-  late TextEditingController _tempoAlertaController;
-  late TextEditingController _tempoLimiteController;
+  late TextEditingController _tempoVerdeController;
+  late TextEditingController _tempoAmareloController;
+  late TextEditingController _tempoVermelhoController;
   late TextEditingController _empresaIdController;
   late TextEditingController _hostBancoController;
   late TextEditingController _portaBancoController;
@@ -52,11 +53,14 @@ class _ConfigDialogState extends State<ConfigDialog> {
     _sincronizarMesas = widget.configAtual.sincronizarMesas;
     _sincronizarComandas = widget.configAtual.sincronizarComandas;
 
-    _tempoAlertaController = TextEditingController(
-      text: widget.configAtual.tempoAlertaMinutos.toString(),
+    _tempoVerdeController = TextEditingController(
+      text: widget.configAtual.tempoVerdeMinutos.toString(),
     );
-    _tempoLimiteController = TextEditingController(
-      text: widget.configAtual.tempoLimiteMinutos.toString(),
+    _tempoAmareloController = TextEditingController(
+      text: widget.configAtual.tempoAmareloMinutos.toString(),
+    );
+    _tempoVermelhoController = TextEditingController(
+      text: widget.configAtual.tempoVermelhoMinutos.toString(),
     );
     _empresaIdController = TextEditingController(
       text: widget.configAtual.empresaId.toString(),
@@ -82,8 +86,9 @@ class _ConfigDialogState extends State<ConfigDialog> {
 
   @override
   void dispose() {
-    _tempoAlertaController.dispose();
-    _tempoLimiteController.dispose();
+    _tempoVerdeController.dispose();
+    _tempoAmareloController.dispose();
+    _tempoVermelhoController.dispose();
     _empresaIdController.dispose();
     _hostBancoController.dispose();
     _portaBancoController.dispose();
@@ -94,9 +99,16 @@ class _ConfigDialogState extends State<ConfigDialog> {
   }
 
   AppConfig _obterConfiguracaoForm() {
+    final verde = int.tryParse(_tempoVerdeController.text) ?? widget.configAtual.tempoVerdeMinutos;
+    final amarelo = int.tryParse(_tempoAmareloController.text) ?? widget.configAtual.tempoAmareloMinutos;
+    final vermelho = int.tryParse(_tempoVermelhoController.text) ?? widget.configAtual.tempoVermelhoMinutos;
+
     return widget.configAtual.copyWith(
-      tempoAlertaMinutos: int.tryParse(_tempoAlertaController.text) ?? widget.configAtual.tempoAlertaMinutos,
-      tempoLimiteMinutos: int.tryParse(_tempoLimiteController.text) ?? widget.configAtual.tempoLimiteMinutos,
+      tempoVerdeMinutos: verde,
+      tempoAmareloMinutos: amarelo,
+      tempoVermelhoMinutos: vermelho,
+      tempoAlertaMinutos: amarelo,
+      tempoLimiteMinutos: vermelho,
       empresaId: int.tryParse(_empresaIdController.text) ?? widget.configAtual.empresaId,
       hostBanco: _hostBancoController.text.trim(),
       portaBanco: int.tryParse(_portaBancoController.text) ?? 3060,
@@ -471,7 +483,7 @@ class _ConfigDialogState extends State<ConfigDialog> {
 
                         const SizedBox(height: 14),
 
-                        // SEÇÃO: PARÂMETROS DE TOLERÂNCIA E ROTATIVIDADE
+                        // SEÇÃO: TEMPO SEM PEDIR NADA (CONFIGURAÇÃO SEMAFÓRICA)
                         Container(
                           padding: const EdgeInsets.all(14),
                           decoration: BoxDecoration(
@@ -482,67 +494,161 @@ class _ConfigDialogState extends State<ConfigDialog> {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.stretch,
                             children: [
-                              const Row(
+                              Row(
                                 children: [
-                                  Icon(Icons.timer_outlined, color: Color(0xFF0D47A1), size: 19),
-                                  SizedBox(width: 8),
-                                  Text(
-                                    'Parâmetros de Tolerância',
-                                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                                  Container(
+                                    padding: const EdgeInsets.all(5),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFF0D47A1).withValues(alpha: 0.1),
+                                      borderRadius: BorderRadius.circular(6),
+                                    ),
+                                    child: const Icon(Icons.timer_outlined, color: Color(0xFF0D47A1), size: 18),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  const Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          'Tempo Sem Pedir Nada (Cores da Mesa)',
+                                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                                        ),
+                                        Text(
+                                          'Configuração de minutos para alternar as cores: Verde, Amarelo e Vermelho',
+                                          style: TextStyle(fontSize: 10.5, color: Color(0xFF64748B)),
+                                        ),
+                                      ],
+                                    ),
                                   ),
                                 ],
                               ),
                               const SizedBox(height: 12),
 
-                              // Tempos de Alerta e Limite
-                              Row(
-                                children: [
-                                  Expanded(
-                                    child: TextFormField(
-                                      controller: _tempoAlertaController,
-                                      keyboardType: TextInputType.number,
-                                      decoration: InputDecoration(
-                                        labelText: 'Alerta (minutos)',
-                                        hintText: '90',
-                                        prefixIcon: const Icon(Icons.warning_amber_rounded, color: Colors.amber, size: 18),
-                                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                                        isDense: true,
-                                        contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
-                                      ),
-                                      validator: (val) {
-                                        final num = int.tryParse(val ?? '');
-                                        if (num == null || num <= 0) return 'Informe minutos';
-                                        return null;
-                                      },
+                              // 3 CAMPOS PARA O TEMPO: VERDE, AMARELO E VERMELHO
+                              LayoutBuilder(
+                                builder: (context, constraints) {
+                                  final bool isNarrow = constraints.maxWidth < 420;
+
+                                  final campoVerde = TextFormField(
+                                    controller: _tempoVerdeController,
+                                    keyboardType: TextInputType.number,
+                                    decoration: InputDecoration(
+                                      labelText: 'Verde (minutos)',
+                                      hintText: '30',
+                                      prefixIcon: const Icon(Icons.circle, color: Color(0xFF16A34A), size: 14),
+                                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                                      isDense: true,
+                                      contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
                                     ),
-                                  ),
-                                  const SizedBox(width: 10),
-                                  Expanded(
-                                    child: TextFormField(
-                                      controller: _tempoLimiteController,
-                                      keyboardType: TextInputType.number,
-                                      decoration: InputDecoration(
-                                        labelText: 'Limite Máximo (min)',
-                                        hintText: '120',
-                                        prefixIcon: const Icon(Icons.alarm_on_rounded, color: Colors.red, size: 18),
-                                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                                        isDense: true,
-                                        contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
-                                      ),
-                                      validator: (val) {
-                                        final num = int.tryParse(val ?? '');
-                                        final alerta = int.tryParse(_tempoAlertaController.text);
-                                        if (num == null || num <= 0) return 'Informe minutos';
-                                        if (alerta != null && num <= alerta) {
-                                          return 'Maior que alerta';
-                                        }
-                                        return null;
-                                      },
+                                    validator: (val) {
+                                      final num = int.tryParse(val ?? '');
+                                      if (num == null || num <= 0) return 'Informe minutos';
+                                      return null;
+                                    },
+                                    onChanged: (_) => setState(() {}),
+                                  );
+
+                                  final campoAmarelo = TextFormField(
+                                    controller: _tempoAmareloController,
+                                    keyboardType: TextInputType.number,
+                                    decoration: InputDecoration(
+                                      labelText: 'Amarelo (minutos)',
+                                      hintText: '60',
+                                      prefixIcon: const Icon(Icons.circle, color: Color(0xFFD97706), size: 14),
+                                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                                      isDense: true,
+                                      contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
                                     ),
-                                  ),
-                                ],
+                                    validator: (val) {
+                                      final num = int.tryParse(val ?? '');
+                                      final verde = int.tryParse(_tempoVerdeController.text);
+                                      if (num == null || num <= 0) return 'Informe minutos';
+                                      if (verde != null && num <= verde) {
+                                        return 'Maior que Verde';
+                                      }
+                                      return null;
+                                    },
+                                    onChanged: (_) => setState(() {}),
+                                  );
+
+                                  final campoVermelho = TextFormField(
+                                    controller: _tempoVermelhoController,
+                                    keyboardType: TextInputType.number,
+                                    decoration: InputDecoration(
+                                      labelText: 'Vermelho (minutos)',
+                                      hintText: '90',
+                                      prefixIcon: const Icon(Icons.circle, color: Color(0xFFDC2626), size: 14),
+                                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                                      isDense: true,
+                                      contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
+                                    ),
+                                    validator: (val) {
+                                      final num = int.tryParse(val ?? '');
+                                      final amarelo = int.tryParse(_tempoAmareloController.text);
+                                      if (num == null || num <= 0) return 'Informe minutos';
+                                      if (amarelo != null && num <= amarelo) {
+                                        return 'Maior que Amarelo';
+                                      }
+                                      return null;
+                                    },
+                                    onChanged: (_) => setState(() {}),
+                                  );
+
+                                  if (isNarrow) {
+                                    return Column(
+                                      children: [
+                                        campoVerde,
+                                        const SizedBox(height: 8),
+                                        campoAmarelo,
+                                        const SizedBox(height: 8),
+                                        campoVermelho,
+                                      ],
+                                    );
+                                  }
+
+                                  return Row(
+                                    children: [
+                                      Expanded(child: campoVerde),
+                                      const SizedBox(width: 8),
+                                      Expanded(child: campoAmarelo),
+                                      const SizedBox(width: 8),
+                                      Expanded(child: campoVermelho),
+                                    ],
+                                  );
+                                },
                               ),
+
                               const SizedBox(height: 10),
+
+                              // Preview dinâmico do Semáforo
+                              Builder(
+                                builder: (context) {
+                                  final v = int.tryParse(_tempoVerdeController.text) ?? 30;
+                                  final a = int.tryParse(_tempoAmareloController.text) ?? 60;
+                                  final r = int.tryParse(_tempoVermelhoController.text) ?? 90;
+
+                                  return Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFFF8FAFC),
+                                      borderRadius: BorderRadius.circular(8),
+                                      border: Border.all(color: const Color(0xFFE2E8F0)),
+                                    ),
+                                    child: Row(
+                                      mainAxisAlignment: MainAxisAlignment.spaceAround,
+                                      children: [
+                                        _buildFaixaLegenda('Verde', '0 a ${v}m', const Color(0xFF16A34A), const Color(0xFFDCFCE7)),
+                                        const Icon(Icons.arrow_forward_rounded, size: 12, color: Color(0xFF94A3B8)),
+                                        _buildFaixaLegenda('Amarelo', '${v + 1} a ${a}m', const Color(0xFFD97706), const Color(0xFFFEF3C7)),
+                                        const Icon(Icons.arrow_forward_rounded, size: 12, color: Color(0xFF94A3B8)),
+                                        _buildFaixaLegenda('Vermelho', '> ${a}m (limite ${r}m)', const Color(0xFFDC2626), const Color(0xFFFEE2E2)),
+                                      ],
+                                    ),
+                                  );
+                                },
+                              ),
+
+                              const SizedBox(height: 12),
 
                               // Empresa ID (sem campo de quantidade de mesas, pois busca do ERP)
                               TextFormField(
@@ -735,6 +841,53 @@ class _ConfigDialogState extends State<ConfigDialog> {
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildFaixaLegenda(String titulo, String intervalo, Color corTexto, Color corFundo) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3.5),
+      decoration: BoxDecoration(
+        color: corFundo,
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(color: corTexto.withValues(alpha: 0.35)),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 7,
+                height: 7,
+                decoration: BoxDecoration(
+                  color: corTexto,
+                  shape: BoxShape.circle,
+                ),
+              ),
+              const SizedBox(width: 4),
+              Text(
+                titulo,
+                style: TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.bold,
+                  color: corTexto,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 2),
+          Text(
+            intervalo,
+            style: TextStyle(
+              fontSize: 9,
+              fontWeight: FontWeight.w600,
+              color: corTexto,
+            ),
+          ),
+        ],
       ),
     );
   }

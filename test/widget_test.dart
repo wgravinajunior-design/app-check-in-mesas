@@ -1,8 +1,11 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:apk_check_in/core/constants/app_constants.dart';
 import 'package:apk_check_in/core/constants/mesas_padrao_mansao.dart';
+import 'package:apk_check_in/core/theme/app_theme.dart';
 import 'package:apk_check_in/core/utils/barcode_parser.dart';
 import 'package:apk_check_in/core/utils/time_formatter.dart';
+import 'package:apk_check_in/data/models/config_model.dart';
 import 'package:apk_check_in/domain/entities/app_config.dart';
 import 'package:apk_check_in/domain/entities/comanda.dart';
 import 'package:apk_check_in/domain/entities/consumo_mesa_resumo.dart';
@@ -255,6 +258,43 @@ void main() {
       final valido = pedidoQuaseSimultaneo.isAfter(limite) ||
           pedidoQuaseSimultaneo.isAtSameMomentAs(limite);
       expect(valido, isTrue);
+    });
+
+    test('AppConfig e ConfigModel devem gerenciar os 3 campos de tempo sem pedidos (Verde, Amarelo e Vermelho)', () {
+      const configPadrao = AppConfig();
+      expect(configPadrao.tempoVerdeMinutos, equals(30));
+      expect(configPadrao.tempoAmareloMinutos, equals(60));
+      expect(configPadrao.tempoVermelhoMinutos, equals(90));
+      // Compatibilidade legada
+      expect(configPadrao.tempoAlertaMinutos, equals(60));
+      expect(configPadrao.tempoLimiteMinutos, equals(90));
+
+      final configCustom = configPadrao.copyWith(
+        tempoVerdeMinutos: 20,
+        tempoAmareloMinutos: 40,
+        tempoVermelhoMinutos: 60,
+      );
+      expect(configCustom.tempoVerdeMinutos, equals(20));
+      expect(configCustom.tempoAmareloMinutos, equals(40));
+      expect(configCustom.tempoVermelhoMinutos, equals(60));
+
+      final model = ConfigModel.fromEntity(configCustom);
+      final json = model.toJson();
+      expect(json['tempoVerdeMinutos'], equals(20));
+      expect(json['tempoAmareloMinutos'], equals(40));
+      expect(json['tempoVermelhoMinutos'], equals(60));
+
+      final recriado = ConfigModel.fromJson(json);
+      expect(recriado.tempoVerdeMinutos, equals(20));
+      expect(recriado.tempoAmareloMinutos, equals(40));
+      expect(recriado.tempoVermelhoMinutos, equals(60));
+    });
+
+    test('Paleta de cores deve seguir o semáforo: Normal Verde, Alerta Amarelo/Âmbar, Excedido Vermelho e Livre Slate', () {
+      expect(AppTheme.corMesaNormal, equals(const Color(0xFF16A34A))); // Verde
+      expect(AppTheme.corMesaAlerta, equals(const Color(0xFFD97706))); // Amarelo/Âmbar
+      expect(AppTheme.corMesaExcedida, equals(const Color(0xFFDC2626))); // Vermelho
+      expect(AppTheme.corMesaLivre, equals(const Color(0xFF64748B))); // Slate
     });
   });
 }

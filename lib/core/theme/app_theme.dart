@@ -1,18 +1,18 @@
 import 'package:flutter/material.dart';
 
 class AppTheme {
-  // Paleta de Cores Dinâmicas para Estados de Mesa
-  static const Color corMesaLivre = Color(0xFF2E7D32); // Verde elegante
-  static const Color corMesaLivreClaro = Color(0xFFE8F5E9);
+  // Paleta de Cores Dinâmicas Semafóricas para Estados de Mesa e Pedidos
+  static const Color corMesaLivre = Color(0xFF64748B); // Slate profissional para mesa livre / desocupada
+  static const Color corMesaLivreClaro = Color(0xFFF1F5F9);
 
-  static const Color corMesaNormal = Color(0xFF1565C0); // Azul profissional
-  static const Color corMesaNormalClaro = Color(0xFFE3F2FD);
+  static const Color corMesaNormal = Color(0xFF16A34A); // Verde: Em atendimento / Pedido recente dentro da tolerância
+  static const Color corMesaNormalClaro = Color(0xFFDCFCE7);
 
-  static const Color corMesaAlerta = Color(0xFFEF6C00); // Laranja de alerta
-  static const Color corMesaAlertaClaro = Color(0xFFFFF3E0);
+  static const Color corMesaAlerta = Color(0xFFD97706); // Amarelo/Âmbar: Alerta de tolerância sem pedidos
+  static const Color corMesaAlertaClaro = Color(0xFFFEF3C7);
 
-  static const Color corMesaExcedida = Color(0xFFC62828); // Vermelho vibrante
-  static const Color corMesaExcedidaClaro = Color(0xFFFFEBEE);
+  static const Color corMesaExcedida = Color(0xFFDC2626); // Vermelho: Limite excedido / muito tempo sem pedir
+  static const Color corMesaExcedidaClaro = Color(0xFFFEE2E2);
 
   static ThemeData get lightTheme {
     final colorScheme = ColorScheme.fromSeed(

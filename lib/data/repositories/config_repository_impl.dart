@@ -8,10 +8,14 @@ class ConfigRepositoryImpl implements ConfigRepository {
   Future<AppConfig> carregarConfiguracoes() async {
     final prefs = await SharedPreferences.getInstance();
 
-    final int tempoAlerta = prefs.getInt(AppConstants.keyTempoAlerta) ??
-        AppConstants.defaultTempoAlertaMinutos;
-    final int tempoLimite = prefs.getInt(AppConstants.keyTempoLimite) ??
-        AppConstants.defaultTempoLimiteMinutos;
+    final int tempoVerde = prefs.getInt(AppConstants.keyTempoVerde) ??
+        AppConstants.defaultTempoVerdeMinutos;
+    final int tempoAmarelo = prefs.getInt(AppConstants.keyTempoAmarelo) ??
+        prefs.getInt(AppConstants.keyTempoAlerta) ??
+        AppConstants.defaultTempoAmareloMinutos;
+    final int tempoVermelho = prefs.getInt(AppConstants.keyTempoVermelho) ??
+        prefs.getInt(AppConstants.keyTempoLimite) ??
+        AppConstants.defaultTempoVermelhoMinutos;
     final int totalMesas = prefs.getInt(AppConstants.keyTotalMesas) ??
         AppConstants.defaultTotalMesas;
     final int empresaId = prefs.getInt(AppConstants.keyEmpresaId) ??
@@ -43,8 +47,9 @@ class ConfigRepositoryImpl implements ConfigRepository {
         prefs.getInt(AppConstants.keyTotalComandas) ?? AppConstants.defaultTotalComandas;
 
     return AppConfig(
-      tempoAlertaMinutos: tempoAlerta,
-      tempoLimiteMinutos: tempoLimite,
+      tempoVerdeMinutos: tempoVerde,
+      tempoAmareloMinutos: tempoAmarelo,
+      tempoVermelhoMinutos: tempoVermelho,
       totalMesas: totalMesas,
       empresaId: empresaId,
       apiUrl: apiUrl,
@@ -67,8 +72,11 @@ class ConfigRepositoryImpl implements ConfigRepository {
   Future<void> salvarConfiguracoes(AppConfig config) async {
     final prefs = await SharedPreferences.getInstance();
 
-    await prefs.setInt(AppConstants.keyTempoAlerta, config.tempoAlertaMinutos);
-    await prefs.setInt(AppConstants.keyTempoLimite, config.tempoLimiteMinutos);
+    await prefs.setInt(AppConstants.keyTempoVerde, config.tempoVerdeMinutos);
+    await prefs.setInt(AppConstants.keyTempoAmarelo, config.tempoAmareloMinutos);
+    await prefs.setInt(AppConstants.keyTempoVermelho, config.tempoVermelhoMinutos);
+    await prefs.setInt(AppConstants.keyTempoAlerta, config.tempoAmareloMinutos);
+    await prefs.setInt(AppConstants.keyTempoLimite, config.tempoVermelhoMinutos);
     await prefs.setInt(AppConstants.keyTotalMesas, config.totalMesas);
     await prefs.setInt(AppConstants.keyEmpresaId, config.empresaId);
     await prefs.setString(AppConstants.keyApiUrl, config.apiUrl);

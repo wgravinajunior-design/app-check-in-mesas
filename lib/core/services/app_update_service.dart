@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:url_launcher/url_launcher.dart';
 import '../../presentation/widgets/download_update_dialog.dart';
 import '../theme/app_theme.dart';
 
@@ -34,7 +35,7 @@ class AtualizacaoInfo {
   /// URL de download apropriada de acordo com a plataforma em execução
   String? get urlDownloadApropriada {
     if (!kIsWeb && Platform.isWindows) {
-      return urlDownloadWindows ?? urlDownloadApk ?? urlReleaseHtml;
+      return urlDownloadWindows ?? urlReleaseHtml;
     }
     return urlDownloadApk ?? urlReleaseHtml;
   }
@@ -43,7 +44,7 @@ class AtualizacaoInfo {
 class AppUpdateService {
   static const String repositorioOwner = 'wgravinajunior-design';
   static const String repositorioNome = 'app-check-in-mesas';
-  static const String versaoAtualApp = '1.0.15';
+  static const String versaoAtualApp = '1.0.16';
 
   static Future<AtualizacaoInfo> verificarAtualizacao() async {
     final url = Uri.parse(
@@ -70,7 +71,8 @@ class AppUpdateService {
         final String htmlUrl = data['html_url'] as String? ?? '';
 
         String? downloadApk;
-        String? downloadWindows;
+        String? downloadWindowsZip;
+        String? downloadWindowsExe;
         final assets = data['assets'] as List<dynamic>?;
         if (assets != null && assets.isNotEmpty) {
           for (final asset in assets) {
@@ -78,11 +80,18 @@ class AppUpdateService {
             final String? downloadUrl = asset['browser_download_url'] as String?;
             if (nomeArquivo.endsWith('.apk')) {
               downloadApk = downloadUrl;
-            } else if (nomeArquivo.contains('windows') || nomeArquivo.endsWith('.zip') || nomeArquivo.endsWith('.exe')) {
-              downloadWindows = downloadUrl;
+            } else if (nomeArquivo.endsWith('.zip')) {
+              if (downloadWindowsZip == null || nomeArquivo.contains('windows')) {
+                downloadWindowsZip = downloadUrl;
+              }
+            } else if (nomeArquivo.endsWith('.exe')) {
+              downloadWindowsExe = downloadUrl;
             }
           }
         }
+
+        // Prioriza o pacote .zip para Windows (que contém o app completo com DLLs e dados)
+        final String? downloadWindows = downloadWindowsZip ?? downloadWindowsExe;
 
         final bool precisaAtualizar = _compararVersoes(tagName, versaoAtualApp);
 
@@ -211,7 +220,9 @@ class AppUpdateService {
               ),
               const SizedBox(height: 12),
               Text(
-                'Ao tocar em "Atualizar Automaticamente", o download do novo APK será exibido com barra de progresso e a instalação iniciará na tela.',
+                !kIsWeb && Platform.isWindows
+                    ? 'Ao tocar em "Atualizar Automaticamente", o pacote completo (.zip) será baixado e preparado. Ou se preferir, baixe pelo navegador.'
+                    : 'Ao tocar em "Atualizar Automaticamente", o download do novo APK será exibido com barra de progresso e o instalador será iniciado. Ou se preferir, baixe diretamente pelo navegador.',
                 style: TextStyle(fontSize: 11, color: Colors.grey.shade600, fontStyle: FontStyle.italic),
               ),
             ],
@@ -221,6 +232,20 @@ class AppUpdateService {
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(),
             child: const Text('Mais Tarde'),
+          ),
+          OutlinedButton.icon(
+            icon: const Icon(Icons.open_in_browser, size: 18),
+            label: const Text('Baixar no Navegador'),
+            onPressed: () async {
+              Navigator.of(ctx).pop();
+              final url = info.urlDownloadApropriada ?? info.urlReleaseHtml;
+              if (url != null && url.isNotEmpty) {
+                final uri = Uri.parse(url);
+                if (await canLaunchUrl(uri)) {
+                  await launchUrl(uri, mode: LaunchMode.externalApplication);
+                }
+              }
+            },
           ),
           ElevatedButton.icon(
             style: ElevatedButton.styleFrom(
