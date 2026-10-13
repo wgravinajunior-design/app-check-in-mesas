@@ -5,6 +5,8 @@ import 'package:apk_check_in/core/utils/barcode_parser.dart';
 import 'package:apk_check_in/core/utils/time_formatter.dart';
 import 'package:apk_check_in/domain/entities/app_config.dart';
 import 'package:apk_check_in/domain/entities/comanda.dart';
+import 'package:apk_check_in/domain/entities/consumo_mesa_resumo.dart';
+import 'package:apk_check_in/domain/entities/pedido_resumo.dart';
 import 'package:apk_check_in/domain/entities/status_permanencia.dart';
 
 void main() {
@@ -117,6 +119,71 @@ void main() {
       expect(BarcodeParser.formatarCodigoTresDigitos('15'), equals('015'));
       expect(BarcodeParser.formatarCodigoTresDigitos('100'), equals('100'));
     });
+
+    test('ConsumoMesaResumo deve calcular último pedido, minutos decorridos e somatório total (Modelo Pré-pago)', () {
+      final dataCheckIn = DateTime(2026, 10, 13, 19, 0, 0);
+      final pedido1 = PedidoResumo(
+        id: 101,
+        empresaId: 1,
+        mesaId: 23,
+        dataHoraLancamento: DateTime(2026, 10, 13, 19, 15, 0),
+        valorTotal: 54.90,
+        status: 'F',
+      );
+      final pedido2 = PedidoResumo(
+        id: 102,
+        empresaId: 1,
+        mesaId: 23,
+        dataHoraLancamento: DateTime(2026, 10, 13, 19, 45, 0),
+        valorTotal: 120.00,
+        status: 'F',
+      );
+      final pedido3 = PedidoResumo(
+        id: 103,
+        empresaId: 1,
+        mesaId: 23,
+        dataHoraLancamento: DateTime(2026, 10, 13, 20, 10, 0),
+        valorTotal: 35.00,
+        status: 'F',
+      );
+
+      // Instante atual: 20:25:00 (15 minutos após o pedido3)
+      final agora = DateTime(2026, 10, 13, 20, 25, 0);
+
+      final resumo = ConsumoMesaResumo.processar(
+        mesaId: 23,
+        codigoMesa: '023',
+        dataCheckIn: dataCheckIn,
+        pedidosFiltrados: [pedido1, pedido2, pedido3],
+        agora: agora,
+      );
+
+      expect(resumo.temPedidos, isTrue);
+      expect(resumo.quantidadePedidos, equals(3));
+      // Último pedido capturado pela ordenação decrescente
+      expect(resumo.ultimoPedido?.id, equals(103));
+      expect(resumo.valorUltimoPedido, equals(35.00));
+      // Diferença em minutos entre 20:25:00 e 20:10:00 = 15 minutos
+      expect(resumo.minutosDesdeUltimoPedido, equals(15));
+      // Somatório total de todos os pedidos desde o check-in: 54.90 + 120.00 + 35.00 = 209.90
+      expect(resumo.valorTotalPedidos, closeTo(209.90, 0.001));
+
+      // Teste com lista vazia (sem pedidos após o check-in)
+      final resumoVazio = ConsumoMesaResumo.processar(
+        mesaId: 23,
+        codigoMesa: '023',
+        dataCheckIn: dataCheckIn,
+        pedidosFiltrados: [],
+        agora: agora,
+      );
+      expect(resumoVazio.temPedidos, isFalse);
+      expect(resumoVazio.quantidadePedidos, equals(0));
+      expect(resumoVazio.ultimoPedido, isNull);
+      expect(resumoVazio.minutosDesdeUltimoPedido, isNull);
+      expect(resumoVazio.valorUltimoPedido, equals(0.0));
+      expect(resumoVazio.valorTotalPedidos, equals(0.0));
+    });
   });
 }
+
 

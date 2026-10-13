@@ -4,8 +4,11 @@ import 'package:flutter/foundation.dart';
 import 'package:fbdb/fbdb.dart';
 import '../../core/constants/app_constants.dart';
 import '../../core/constants/mesas_padrao_mansao.dart';
+import '../../core/utils/time_formatter.dart';
 import '../../domain/entities/app_config.dart';
+import '../../domain/entities/mesa.dart';
 import '../models/mesa_model.dart';
+import '../models/pedido_resumo_model.dart';
 
 /// DataSource para conexão direta nativa com a base de dados Firebird 5.0
 /// Utiliza o driver nativo oficial do Firebird (fbdb + libfbclient.so no Android / fbclient.dll no Windows)
@@ -286,5 +289,281 @@ ORDER BY MSA_ID;
     } finally {
       await db.detach();
     }
+  }
+
+  /// Consulta pedidos da mesa na retaguarda Firebird 5.0 no modelo pré-pago:
+  /// - Filtro temporal: apenas pedidos feitos após dataHoraCheckIn
+  /// - Último pedido: ordenados decrescente pela data/hora
+  /// - Valores: ID, data/hora, valor total e status
+  Future<List<PedidoResumoModel>> buscarPedidosMesaFirebird({
+    required AppConfig config,
+    required int mesaId,
+    required String codigoMesa,
+    required DateTime dataCheckIn,
+  }) async {
+    final hostLimpo = config.hostBanco.trim();
+    final porta = config.portaBanco > 0 ? config.portaBanco : AppConstants.defaultPortaFirebird;
+    final databasePath = config.caminhoBanco.trim();
+    final user = config.usuarioBanco.trim();
+    final password = config.senhaBanco.trim();
+    final int codigoInt = int.tryParse(codigoMesa) ?? mesaId;
+    final String dtSql = TimeFormatter.formatDateTimeSql(dataCheckIn);
+
+    final sql = '''
+SELECT
+    PEV_ID,
+    PEV_EMPRESA,
+    PEV_MESA,
+    PEV_DT_LANCAMENTO,
+    COALESCE(PEV_VALOR_TOTAL, 0.0) AS PEV_VALOR_TOTAL,
+    PEV_STATUS
+FROM TB_PEDIDO_VENDA
+WHERE PEV_EMPRESA = ${config.empresaId}
+  AND (PEV_MESA = $mesaId OR PEV_MESA = $codigoInt)
+  AND PEV_DT_LANCAMENTO >= '$dtSql'
+  AND COALESCE(PEV_STATUS, '') != 'C'
+ORDER BY PEV_DT_LANCAMENTO DESC;
+''';
+
+    // 1. Tenta via FbDb nativo
+    try {
+      final db = await FbDb.attach(
+        host: hostLimpo,
+        port: porta,
+        database: databasePath,
+        user: user,
+        password: password,
+      );
+
+      final q = db.query();
+      await q.openCursor(sql: sql);
+
+      final List<PedidoResumoModel> pedidos = [];
+      await for (final row in q.rows()) {
+        pedidos.add(PedidoResumoModel.fromFirebirdRow(row));
+      }
+
+      await q.close();
+      await db.detach();
+      return pedidos;
+    } catch (_) {}
+
+    // 2. Fallback via ISQL no Windows
+    if (!kIsWeb && Platform.isWindows) {
+      final isqlPath = _obterCaminhoIsql();
+      if (isqlPath != null) {
+        final stringConexao = _montarStringConexao(config);
+        final sqlIsql = '''
+SET HEADING OFF;
+SELECT
+    PEV_ID || ';' ||
+    COALESCE(PEV_EMPRESA, 1) || ';' ||
+    PEV_MESA || ';' ||
+    PEV_DT_LANCAMENTO || ';' ||
+    COALESCE(PEV_VALOR_TOTAL, 0.0) || ';' ||
+    COALESCE(PEV_STATUS, 'F')
+FROM TB_PEDIDO_VENDA
+WHERE PEV_EMPRESA = ${config.empresaId}
+  AND (PEV_MESA = $mesaId OR PEV_MESA = $codigoInt)
+  AND PEV_DT_LANCAMENTO >= '$dtSql'
+  AND COALESCE(PEV_STATUS, '') != 'C'
+ORDER BY PEV_DT_LANCAMENTO DESC;
+''';
+        try {
+          final process = await Process.start(
+            isqlPath,
+            ['-u', user, '-p', password, '-q', stringConexao],
+            runInShell: false,
+          );
+
+          process.stdin.writeln(sqlIsql);
+          process.stdin.writeln('QUIT;');
+          await process.stdin.flush();
+          await process.stdin.close();
+
+          final output = await process.stdout.transform(systemEncoding.decoder).join();
+          final exitCode = await process.exitCode;
+
+          if (exitCode == 0) {
+            final List<PedidoResumoModel> pedidos = [];
+            final linhas = const LineSplitter().convert(output);
+            for (final linha in linhas) {
+              final trim = linha.trim();
+              if (trim.isEmpty || trim.startsWith('Database:') || trim.startsWith('SQL>')) continue;
+              final partes = trim.split(';');
+              if (partes.length >= 6) {
+                final id = int.tryParse(partes[0].trim()) ?? 0;
+                final emp = int.tryParse(partes[1].trim()) ?? config.empresaId;
+                final mesa = int.tryParse(partes[2].trim()) ?? mesaId;
+                final dt = DateTime.tryParse(partes[3].trim()) ?? DateTime.now();
+                final valor = double.tryParse(partes[4].trim()) ?? 0.0;
+                final st = partes[5].trim();
+                if (id > 0) {
+                  pedidos.add(PedidoResumoModel(
+                    id: id,
+                    empresaId: emp,
+                    mesaId: mesa,
+                    dataHoraLancamento: dt,
+                    valorTotal: valor,
+                    status: st,
+                  ));
+                }
+              }
+            }
+            return pedidos;
+          }
+        } catch (_) {}
+      }
+    }
+
+    return [];
+  }
+
+  /// Consulta em lote os pedidos de todas as mesas ocupadas na retaguarda Firebird 5.0
+  /// Otimizado para uma única ida ao banco de dados com filtro temporal a partir do menor check-in
+  Future<Map<int, List<PedidoResumoModel>>> buscarPedidosMesasOcupadasFirebird({
+    required AppConfig config,
+    required List<Mesa> mesasOcupadas,
+  }) async {
+    if (mesasOcupadas.isEmpty) return {};
+
+    DateTime? menorCheckIn;
+    final Set<int> identificadoresMesas = {};
+
+    for (final mesa in mesasOcupadas) {
+      identificadoresMesas.add(mesa.id);
+      final int? codInt = int.tryParse(mesa.codigo);
+      if (codInt != null) identificadoresMesas.add(codInt);
+
+      final entrada = mesa.horaEntrada;
+      if (entrada != null) {
+        if (menorCheckIn == null || entrada.isBefore(menorCheckIn)) {
+          menorCheckIn = entrada;
+        }
+      }
+    }
+
+    if (menorCheckIn == null || identificadoresMesas.isEmpty) return {};
+
+    final hostLimpo = config.hostBanco.trim();
+    final porta = config.portaBanco > 0 ? config.portaBanco : AppConstants.defaultPortaFirebird;
+    final databasePath = config.caminhoBanco.trim();
+    final user = config.usuarioBanco.trim();
+    final password = config.senhaBanco.trim();
+    final String dtSql = TimeFormatter.formatDateTimeSql(menorCheckIn);
+    final String listaIds = identificadoresMesas.join(',');
+
+    final sql = '''
+SELECT
+    PEV_ID,
+    PEV_EMPRESA,
+    PEV_MESA,
+    PEV_DT_LANCAMENTO,
+    COALESCE(PEV_VALOR_TOTAL, 0.0) AS PEV_VALOR_TOTAL,
+    PEV_STATUS
+FROM TB_PEDIDO_VENDA
+WHERE PEV_EMPRESA = ${config.empresaId}
+  AND PEV_MESA IN ($listaIds)
+  AND PEV_DT_LANCAMENTO >= '$dtSql'
+  AND COALESCE(PEV_STATUS, '') != 'C'
+ORDER BY PEV_DT_LANCAMENTO DESC;
+''';
+
+    final Map<int, List<PedidoResumoModel>> resultado = {};
+
+    // 1. Tenta via FbDb nativo
+    try {
+      final db = await FbDb.attach(
+        host: hostLimpo,
+        port: porta,
+        database: databasePath,
+        user: user,
+        password: password,
+      );
+
+      final q = db.query();
+      await q.openCursor(sql: sql);
+
+      await for (final row in q.rows()) {
+        final pedido = PedidoResumoModel.fromFirebirdRow(row);
+        if (pedido.id > 0) {
+          resultado.putIfAbsent(pedido.mesaId, () => []).add(pedido);
+        }
+      }
+
+      await q.close();
+      await db.detach();
+      return resultado;
+    } catch (_) {}
+
+    // 2. Fallback via ISQL no Windows
+    if (!kIsWeb && Platform.isWindows) {
+      final isqlPath = _obterCaminhoIsql();
+      if (isqlPath != null) {
+        final stringConexao = _montarStringConexao(config);
+        final sqlIsql = '''
+SET HEADING OFF;
+SELECT
+    PEV_ID || ';' ||
+    COALESCE(PEV_EMPRESA, 1) || ';' ||
+    PEV_MESA || ';' ||
+    PEV_DT_LANCAMENTO || ';' ||
+    COALESCE(PEV_VALOR_TOTAL, 0.0) || ';' ||
+    COALESCE(PEV_STATUS, 'F')
+FROM TB_PEDIDO_VENDA
+WHERE PEV_EMPRESA = ${config.empresaId}
+  AND PEV_MESA IN ($listaIds)
+  AND PEV_DT_LANCAMENTO >= '$dtSql'
+  AND COALESCE(PEV_STATUS, '') != 'C'
+ORDER BY PEV_DT_LANCAMENTO DESC;
+''';
+        try {
+          final process = await Process.start(
+            isqlPath,
+            ['-u', user, '-p', password, '-q', stringConexao],
+            runInShell: false,
+          );
+
+          process.stdin.writeln(sqlIsql);
+          process.stdin.writeln('QUIT;');
+          await process.stdin.flush();
+          await process.stdin.close();
+
+          final output = await process.stdout.transform(systemEncoding.decoder).join();
+          final exitCode = await process.exitCode;
+
+          if (exitCode == 0) {
+            final linhas = const LineSplitter().convert(output);
+            for (final linha in linhas) {
+              final trim = linha.trim();
+              if (trim.isEmpty || trim.startsWith('Database:') || trim.startsWith('SQL>')) continue;
+              final partes = trim.split(';');
+              if (partes.length >= 6) {
+                final id = int.tryParse(partes[0].trim()) ?? 0;
+                final emp = int.tryParse(partes[1].trim()) ?? config.empresaId;
+                final mesa = int.tryParse(partes[2].trim()) ?? 0;
+                final dt = DateTime.tryParse(partes[3].trim()) ?? DateTime.now();
+                final valor = double.tryParse(partes[4].trim()) ?? 0.0;
+                final st = partes[5].trim();
+                if (id > 0 && mesa > 0) {
+                  final pedido = PedidoResumoModel(
+                    id: id,
+                    empresaId: emp,
+                    mesaId: mesa,
+                    dataHoraLancamento: dt,
+                    valorTotal: valor,
+                    status: st,
+                  );
+                  resultado.putIfAbsent(mesa, () => []).add(pedido);
+                }
+              }
+            }
+            return resultado;
+          }
+        } catch (_) {}
+      }
+    }
+
+    return resultado;
   }
 }

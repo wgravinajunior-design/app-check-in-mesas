@@ -418,7 +418,7 @@ class _MesaGridScreenState extends State<MesaGridScreen> {
                               crossAxisCount: crossAxisCount,
                               crossAxisSpacing: 8,
                               mainAxisSpacing: 8,
-                              childAspectRatio: 1.15,
+                              childAspectRatio: constraints.maxWidth > 600 ? 1.05 : 0.95,
                             ),
                             itemCount: mesasFiltradas.length,
                             itemBuilder: (context, index) {

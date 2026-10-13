@@ -168,3 +168,71 @@ FROM TB_INGRESSO I
 WHERE I.ING_EMPRESA = 1
   AND I.ING_DURACAO > 120
 ORDER BY I.ING_DT_ENTRADA DESC;
+
+/* ==============================================================================
+   4. CONSULTAS DE PEDIDOS E CONSUMO POR MESA (MODELO PRÉ-PAGO)
+   TABELAS ENVOLVIDAS: TB_PEDIDO_VENDA, TB_INGRESSO, TB_MESA
+   ============================================================================== */
+
+-- 4.1. Criação do Índice de Alta Performance para Pedidos por Mesa e Data
+SET TERM ^ ;
+EXECUTE BLOCK AS
+BEGIN
+  IF (NOT EXISTS (
+    SELECT 1 
+    FROM RDB$INDICES 
+    WHERE RDB$INDEX_NAME = 'IDX_TB_PEV_AUDIT_MESA_DATA'
+  )) THEN
+  BEGIN
+    EXECUTE STATEMENT 'CREATE INDEX IDX_TB_PEV_AUDIT_MESA_DATA ON TB_PEDIDO_VENDA (PEV_EMPRESA, PEV_MESA, PEV_DT_LANCAMENTO);';
+  END
+END^
+SET TERM ; ^
+COMMIT;
+
+-- 4.2. Consulta de Pedidos Realizados na Mesa após o Momento do Check-in
+-- Regras de negócio:
+-- - Modelo pré-pago: Não filtra por pedido em aberto; cada pedido é pago no ato.
+-- - Filtro temporal: Apenas pedidos após ING_DT_ENTRADA (Check-in da mesa).
+-- - Último pedido: Ordenação decrescente por data/hora para capturar a transação mais recente.
+-- - Tempo decorrido: Minutos entre o último pedido e a hora atual.
+-- - Valores: Valor do último pedido e somatório total de todos os pedidos desde o check-in.
+SELECT
+    P.PEV_ID AS ID_PEDIDO,
+    P.PEV_EMPRESA,
+    P.PEV_MESA AS NUMERO_MESA,
+    P.PEV_DT_LANCAMENTO AS DATA_HORA_PEDIDO,
+    CURRENT_TIMESTAMP AS HORA_ATUAL,
+    DATEDIFF(MINUTE FROM P.PEV_DT_LANCAMENTO TO CURRENT_TIMESTAMP) AS MINUTOS_DESDE_PEDIDO,
+    COALESCE(P.PEV_VALOR_TOTAL, 0.0) AS VALOR_PEDIDO,
+    P.PEV_STATUS
+FROM TB_PEDIDO_VENDA P
+WHERE P.PEV_EMPRESA = 1
+  AND P.PEV_MESA = 23 -- Número ou ID da mesa
+  AND P.PEV_DT_LANCAMENTO >= '2026-10-13 19:30:00' -- Data/Hora exata do Check-in
+  AND COALESCE(P.PEV_STATUS, '') != 'C' -- Desconsidera cancelados
+ORDER BY P.PEV_DT_LANCAMENTO DESC;
+
+-- 4.3. Resumo Consolidado com Último Pedido, Minutos Decorridos e Somatório Total
+SELECT
+    P.PEV_MESA AS NUMERO_MESA,
+    COUNT(P.PEV_ID) AS QTD_PEDIDOS_DESDE_CHECKIN,
+    MAX(P.PEV_DT_LANCAMENTO) AS DATA_HORA_ULTIMO_PEDIDO,
+    DATEDIFF(MINUTE FROM MAX(P.PEV_DT_LANCAMENTO) TO CURRENT_TIMESTAMP) AS MINUTOS_DESDE_ULTIMO_PEDIDO,
+    (
+        SELECT FIRST 1 COALESCE(U.PEV_VALOR_TOTAL, 0.0)
+        FROM TB_PEDIDO_VENDA U
+        WHERE U.PEV_EMPRESA = P.PEV_EMPRESA
+          AND U.PEV_MESA = P.PEV_MESA
+          AND U.PEV_DT_LANCAMENTO >= '2026-10-13 19:30:00'
+          AND COALESCE(U.PEV_STATUS, '') != 'C'
+        ORDER BY U.PEV_DT_LANCAMENTO DESC
+    ) AS VALOR_ULTIMO_PEDIDO,
+    SUM(COALESCE(P.PEV_VALOR_TOTAL, 0.0)) AS VALOR_TOTAL_CONSUMIDO
+FROM TB_PEDIDO_VENDA P
+WHERE P.PEV_EMPRESA = 1
+  AND P.PEV_MESA = 23
+  AND P.PEV_DT_LANCAMENTO >= '2026-10-13 19:30:00'
+  AND COALESCE(P.PEV_STATUS, '') != 'C'
+GROUP BY P.PEV_EMPRESA, P.PEV_MESA;
+

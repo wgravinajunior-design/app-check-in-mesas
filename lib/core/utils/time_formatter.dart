@@ -25,6 +25,10 @@ class TimeFormatter {
     return _dateFormat.format(dateTime);
   }
 
+  static String formatDateTimeSql(DateTime dateTime) {
+    return '${_dateFormat.format(dateTime)} ${_timeFormat.format(dateTime)}';
+  }
+
   /// Formata uma duração em formato de cronômetro clássico HH:MM:SS
   static String formatCronometro(Duration duration) {
     if (duration.isNegative) {

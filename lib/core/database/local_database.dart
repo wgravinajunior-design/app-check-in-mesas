@@ -55,6 +55,22 @@ class LocalDatabase {
       CREATE INDEX IF NOT EXISTS IDX_TB_COMANDA_EMPRESA_CODIGO 
       ON TB_COMANDA (COM_EMPRESA, COM_CODIGO)
     ''');
+
+    // Tabela de Pedidos no modelo pré-pago
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS TB_PEDIDO_VENDA (
+        PEV_ID INTEGER PRIMARY KEY,
+        PEV_EMPRESA INTEGER NOT NULL,
+        PEV_MESA INTEGER NOT NULL,
+        PEV_DT_LANCAMENTO TEXT NOT NULL,
+        PEV_VALOR_TOTAL REAL DEFAULT 0.0,
+        PEV_STATUS TEXT DEFAULT 'F'
+      )
+    ''');
+    await db.execute('''
+      CREATE INDEX IF NOT EXISTS IDX_TB_PEDIDO_VENDA_MESA_DATA
+      ON TB_PEDIDO_VENDA (PEV_EMPRESA, PEV_MESA, PEV_DT_LANCAMENTO)
+    ''');
   }
 
   Future<void> _createDB(Database db, int version) async {
@@ -128,6 +144,23 @@ class LocalDatabase {
     await db.execute('''
       CREATE INDEX IDX_TB_MESA_EMPRESA_CODIGO 
       ON TB_MESA (MSA_EMPRESA, MSA_CODIGO)
+    ''');
+
+    // Tabela de Pedidos no modelo pré-pago
+    await db.execute('''
+      CREATE TABLE TB_PEDIDO_VENDA (
+        PEV_ID INTEGER PRIMARY KEY,
+        PEV_EMPRESA INTEGER NOT NULL,
+        PEV_MESA INTEGER NOT NULL,
+        PEV_DT_LANCAMENTO TEXT NOT NULL,
+        PEV_VALOR_TOTAL REAL DEFAULT 0.0,
+        PEV_STATUS TEXT DEFAULT 'F'
+      )
+    ''');
+
+    await db.execute('''
+      CREATE INDEX IDX_TB_PEDIDO_VENDA_MESA_DATA
+      ON TB_PEDIDO_VENDA (PEV_EMPRESA, PEV_MESA, PEV_DT_LANCAMENTO)
     ''');
   }
 

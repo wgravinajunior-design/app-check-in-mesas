@@ -89,13 +89,13 @@ BEGIN
     BEGIN
         BLOCK "040904e4"
         BEGIN
-            VALUE "CompanyName", "com.example" "\0"
-            VALUE "FileDescription", "apk_check_in" "\0"
+            VALUE "CompanyName", "Mansao da Torre" "\0"
+            VALUE "FileDescription", "CheckMesa" "\0"
             VALUE "FileVersion", VERSION_AS_STRING "\0"
-            VALUE "InternalName", "apk_check_in" "\0"
-            VALUE "LegalCopyright", "Copyright (C) 2026 com.example. All rights reserved." "\0"
-            VALUE "OriginalFilename", "apk_check_in.exe" "\0"
-            VALUE "ProductName", "apk_check_in" "\0"
+            VALUE "InternalName", "CheckMesa" "\0"
+            VALUE "LegalCopyright", "Copyright (C) 2026 Mansao da Torre. All rights reserved." "\0"
+            VALUE "OriginalFilename", "CheckMesa.exe" "\0"
+            VALUE "ProductName", "CheckMesa" "\0"
             VALUE "ProductVersion", VERSION_AS_STRING "\0"
         END
     END

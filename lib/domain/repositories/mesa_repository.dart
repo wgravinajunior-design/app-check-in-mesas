@@ -1,4 +1,5 @@
 import '../entities/app_config.dart';
+import '../entities/consumo_mesa_resumo.dart';
 import '../entities/mesa.dart';
 
 abstract class MesaRepository {
@@ -22,4 +23,21 @@ abstract class MesaRepository {
     required int mesaId,
     required bool isOcupada,
   });
+
+  /// Obtém o resumo dos pedidos de uma mesa feitos após o check-in (modelo pré-pago)
+  Future<ConsumoMesaResumo> obterConsumoMesa({
+    required int empresaId,
+    required int mesaId,
+    required String codigoMesa,
+    required DateTime dataCheckIn,
+    required AppConfig config,
+  });
+
+  /// Obtém o resumo dos pedidos em lote para todas as mesas ocupadas (modelo pré-pago)
+  Future<Map<int, ConsumoMesaResumo>> obterConsumoMesasOcupadas({
+    required int empresaId,
+    required List<Mesa> mesasOcupadas,
+    required AppConfig config,
+  });
 }
+

@@ -1,4 +1,6 @@
 import 'dart:convert';
+import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import '../../presentation/widgets/download_update_dialog.dart';
@@ -11,6 +13,7 @@ class AtualizacaoInfo {
   final String tituloRelease;
   final String notasMelhorias;
   final String? urlDownloadApk;
+  final String? urlDownloadWindows;
   final String? urlReleaseHtml;
   final bool erroConexao;
   final String? mensagemErro;
@@ -22,16 +25,25 @@ class AtualizacaoInfo {
     required this.tituloRelease,
     required this.notasMelhorias,
     this.urlDownloadApk,
+    this.urlDownloadWindows,
     this.urlReleaseHtml,
     this.erroConexao = false,
     this.mensagemErro,
   });
+
+  /// URL de download apropriada de acordo com a plataforma em execução
+  String? get urlDownloadApropriada {
+    if (!kIsWeb && Platform.isWindows) {
+      return urlDownloadWindows ?? urlDownloadApk ?? urlReleaseHtml;
+    }
+    return urlDownloadApk ?? urlReleaseHtml;
+  }
 }
 
 class AppUpdateService {
   static const String repositorioOwner = 'wgravinajunior-design';
   static const String repositorioNome = 'app-check-in-mesas';
-  static const String versaoAtualApp = '1.0.10';
+  static const String versaoAtualApp = '1.0.11';
 
   static Future<AtualizacaoInfo> verificarAtualizacao() async {
     final url = Uri.parse(
@@ -58,13 +70,16 @@ class AppUpdateService {
         final String htmlUrl = data['html_url'] as String? ?? '';
 
         String? downloadApk;
+        String? downloadWindows;
         final assets = data['assets'] as List<dynamic>?;
         if (assets != null && assets.isNotEmpty) {
           for (final asset in assets) {
-            final String nomeArquivo = asset['name'] as String? ?? '';
+            final String nomeArquivo = (asset['name'] as String? ?? '').toLowerCase();
+            final String? downloadUrl = asset['browser_download_url'] as String?;
             if (nomeArquivo.endsWith('.apk')) {
-              downloadApk = asset['browser_download_url'] as String?;
-              break;
+              downloadApk = downloadUrl;
+            } else if (nomeArquivo.contains('windows') || nomeArquivo.endsWith('.zip') || nomeArquivo.endsWith('.exe')) {
+              downloadWindows = downloadUrl;
             }
           }
         }
@@ -78,6 +93,7 @@ class AppUpdateService {
           tituloRelease: titulo,
           notasMelhorias: body,
           urlDownloadApk: downloadApk ?? htmlUrl,
+          urlDownloadWindows: downloadWindows,
           urlReleaseHtml: htmlUrl,
         );
       } else {

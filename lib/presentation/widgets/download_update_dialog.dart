@@ -61,12 +61,12 @@ class _DownloadUpdateDialogState extends State<DownloadUpdateDialog> {
   }
 
   Future<void> _iniciarDownload() async {
-    final url = widget.info.urlDownloadApk;
+    final url = widget.info.urlDownloadApropriada ?? widget.info.urlDownloadApk;
     if (url == null || url.isEmpty) {
       setState(() {
         _erro = true;
         _emDownload = false;
-        _mensagemErro = 'URL do arquivo APK não encontrada na release.';
+        _mensagemErro = 'URL de download da atualização não encontrada na release.';
       });
       return;
     }
@@ -93,14 +93,21 @@ class _DownloadUpdateDialogState extends State<DownloadUpdateDialog> {
       _totalBytes = response.contentLength ?? 0;
 
       final tempDir = await getTemporaryDirectory();
-      final nomeArquivo = 'CheckMesa-v${widget.info.versaoRemota}.apk';
-      final arquivoApk = File('${tempDir.path}/$nomeArquivo');
+      final bool isWindows = Platform.isWindows;
+      final String extensao = isWindows
+          ? (url.toLowerCase().contains('.zip') ? '.zip' : '.exe')
+          : '.apk';
+      final String prefixo = isWindows
+          ? 'CheckMesa-v${widget.info.versaoRemota}-Windows'
+          : 'CheckMesa-v${widget.info.versaoRemota}';
+      final nomeArquivo = '$prefixo$extensao';
+      final arquivoBaixado = File('${tempDir.path}/$nomeArquivo');
 
-      if (await arquivoApk.exists()) {
-        await arquivoApk.delete();
+      if (await arquivoBaixado.exists()) {
+        await arquivoBaixado.delete();
       }
 
-      _fileSink = arquivoApk.openWrite();
+      _fileSink = arquivoBaixado.openWrite();
 
       _subscription = response.stream.listen(
         (chunk) {
@@ -134,10 +141,16 @@ class _DownloadUpdateDialogState extends State<DownloadUpdateDialog> {
             setState(() {
               _progresso = 1.0;
               _emDownload = false;
-              _statusTexto = 'Download concluído! Abrindo instalador...';
+              _statusTexto = isWindows
+                  ? 'Download concluído! Abrindo pacote de atualização...'
+                  : 'Download concluído! Abrindo instalador...';
             });
 
-            await _instalarApkEFechar(arquivoApk.path);
+            if (isWindows) {
+              await _instalarWindowsEConcluir(arquivoBaixado.path, extensao == '.zip');
+            } else {
+              await _instalarApkEFechar(arquivoBaixado.path);
+            }
           }
         },
         cancelOnError: true,
@@ -147,7 +160,27 @@ class _DownloadUpdateDialogState extends State<DownloadUpdateDialog> {
         setState(() {
           _erro = true;
           _emDownload = false;
-          _mensagemErro = 'Não foi possível baixar o APK: $e';
+          _mensagemErro = 'Não foi possível baixar a atualização: $e';
+        });
+      }
+    }
+  }
+
+  Future<void> _instalarWindowsEConcluir(String caminhoArquivo, bool isZip) async {
+    try {
+      final resultado = await OpenFilex.open(caminhoArquivo);
+      if (mounted) {
+        setState(() {
+          _statusTexto = isZip
+              ? 'Pacote de atualização baixado com sucesso! Arquivo aberto.'
+              : 'Instalador do Windows acionado (${resultado.message}).';
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _erro = true;
+          _mensagemErro = 'Arquivo salvo em: $caminhoArquivo. Erro ao abrir: $e';
         });
       }
     }

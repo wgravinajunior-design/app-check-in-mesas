@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../domain/entities/app_config.dart';
+import '../../../domain/entities/consumo_mesa_resumo.dart';
 import '../../../domain/entities/ingresso.dart';
 import '../../../domain/entities/mesa.dart';
 import '../../../domain/entities/status_permanencia.dart';
@@ -17,6 +18,8 @@ class MesaCubit extends Cubit<MesaState> {
   AppConfig _config = const AppConfig();
   final Set<int> _mesasAlertadas = {};
   final Set<int> _mesasExcedidas = {};
+  int _contadorTicks = 0;
+  bool _sincronizandoConsumo = false;
 
   MesaCubit({
     required this.mesaRepository,
@@ -90,12 +93,73 @@ class MesaCubit extends Cubit<MesaState> {
         }
       }).toList();
 
+      // Carrega resumo de consumo e pedidos de todas as mesas ocupadas desde o check-in
+      final List<Mesa> mesasOcupadas = mesasCompletas.where((m) => m.isOcupada).toList();
+      Map<int, ConsumoMesaResumo> mapaConsumo = {};
+      if (mesasOcupadas.isNotEmpty) {
+        try {
+          mapaConsumo = await mesaRepository.obterConsumoMesasOcupadas(
+            empresaId: _config.empresaId,
+            mesasOcupadas: mesasOcupadas,
+            config: _config,
+          );
+        } catch (_) {}
+      }
+
+      final List<Mesa> mesasCompletasComConsumo = mesasCompletas.map((mesa) {
+        if (mesa.isOcupada) {
+          final consumo = mapaConsumo[mesa.id];
+          if (consumo != null) {
+            return mesa.copyWith(consumoResumo: consumo.comHoraAtual(agora));
+          }
+        }
+        return mesa;
+      }).toList();
+
       emit(MesaLoaded(
-        mesas: mesasCompletas,
+        mesas: mesasCompletasComConsumo,
         ultimoTick: agora,
       ));
     } catch (e) {
       emit(MesaError('Falha ao carregar mesas e status de permanência: ${e.toString()}'));
+    }
+  }
+
+  /// Sincroniza em segundo plano os pedidos e consumo de todas as mesas ocupadas
+  Future<void> atualizarConsumoMesas() async {
+    final estadoAtual = state;
+    if (estadoAtual is! MesaLoaded || _sincronizandoConsumo) return;
+
+    final List<Mesa> mesasOcupadas = estadoAtual.mesas.where((m) => m.isOcupada).toList();
+    if (mesasOcupadas.isEmpty) return;
+
+    _sincronizandoConsumo = true;
+    try {
+      final Map<int, ConsumoMesaResumo> mapaConsumo =
+          await mesaRepository.obterConsumoMesasOcupadas(
+        empresaId: _config.empresaId,
+        mesasOcupadas: mesasOcupadas,
+        config: _config,
+      );
+
+      final agora = DateTime.now();
+      final List<Mesa> mesasAtualizadas = estadoAtual.mesas.map((mesa) {
+        if (mesa.isOcupada) {
+          final consumo = mapaConsumo[mesa.id];
+          if (consumo != null) {
+            return mesa.copyWith(consumoResumo: consumo.comHoraAtual(agora));
+          }
+        }
+        return mesa;
+      }).toList();
+
+      emit(MesaLoaded(
+        mesas: mesasAtualizadas,
+        ultimoTick: agora,
+      ));
+    } catch (_) {
+    } finally {
+      _sincronizandoConsumo = false;
     }
   }
 
@@ -129,6 +193,12 @@ class MesaCubit extends Cubit<MesaState> {
 
     final agora = DateTime.now();
     bool houveMudanca = false;
+    _contadorTicks++;
+
+    // A cada 15 segundos, agenda sincronização dos novos pedidos lançados na retaguarda
+    if (_contadorTicks % 15 == 0 && !_sincronizandoConsumo) {
+      atualizarConsumoMesas();
+    }
 
     final List<Mesa> mesasAtualizadas = estadoAtual.mesas.map((mesa) {
       if (!mesa.isOcupada || mesa.ingressoAtual?.dtEntrada == null) {
@@ -139,6 +209,7 @@ class MesaCubit extends Cubit<MesaState> {
 
       final Duration novoDecorrido = agora.difference(mesa.ingressoAtual!.dtEntrada!);
       final StatusPermanencia novoStatus = _calcularStatusPermanencia(novoDecorrido);
+      final ConsumoMesaResumo? novoConsumo = mesa.consumoResumo?.comHoraAtual(agora);
 
       if (novoStatus == StatusPermanencia.alertaTolerancia &&
           !_mesasAlertadas.contains(mesa.id)) {
@@ -160,6 +231,7 @@ class MesaCubit extends Cubit<MesaState> {
       return mesa.copyWith(
         tempoDecorrido: novoDecorrido,
         statusPermanencia: novoStatus,
+        consumoResumo: novoConsumo,
       );
     }).toList();
 
@@ -215,6 +287,16 @@ class MesaCubit extends Cubit<MesaState> {
             ingressoAtual: novoIngresso,
             tempoDecorrido: Duration.zero,
             statusPermanencia: StatusPermanencia.normal,
+            consumoResumo: ConsumoMesaResumo(
+              mesaId: mesa.id,
+              codigoMesa: mesa.codigo,
+              dataCheckIn: dataEntrada,
+              ultimoPedido: null,
+              minutosDesdeUltimoPedido: null,
+              valorUltimoPedido: 0.0,
+              valorTotalPedidos: 0.0,
+              quantidadePedidos: 0,
+            ),
           );
         }
         return m;
@@ -266,6 +348,7 @@ class MesaCubit extends Cubit<MesaState> {
           return m.copyWith(
             isOcupada: false,
             clearIngressoAtual: true,
+            clearConsumoResumo: true,
             tempoDecorrido: Duration.zero,
             statusPermanencia: StatusPermanencia.livre,
           );
@@ -332,6 +415,7 @@ class MesaCubit extends Cubit<MesaState> {
           return m.copyWith(
             isOcupada: false,
             clearIngressoAtual: true,
+            clearConsumoResumo: true,
             tempoDecorrido: Duration.zero,
             statusPermanencia: StatusPermanencia.livre,
           );
@@ -342,6 +426,10 @@ class MesaCubit extends Cubit<MesaState> {
             ingressoAtual: ingressoTransferido,
             tempoDecorrido: mesaOrigem.tempoDecorrido,
             statusPermanencia: mesaOrigem.statusPermanencia,
+            consumoResumo: mesaOrigem.consumoResumo?.copyWith(
+              mesaId: mesaDestino.id,
+              codigoMesa: mesaDestino.codigo,
+            ),
           );
         }
         return m;

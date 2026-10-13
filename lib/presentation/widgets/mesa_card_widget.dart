@@ -152,6 +152,97 @@ class MesaCardWidget extends StatelessWidget {
                     ],
                   ),
                 ),
+                const SizedBox(height: 3),
+                // Seção Consumo & Último Pedido (Modelo Pré-pago)
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(vertical: 3, horizontal: 5),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF8FAFC),
+                    borderRadius: BorderRadius.circular(6),
+                    border: Border.all(
+                      color: const Color(0xFFE2E8F0),
+                      width: 0.8,
+                    ),
+                  ),
+                  child: mesa.temConsumo
+                      ? Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Row(
+                                  children: [
+                                    const Icon(
+                                      Icons.fastfood_rounded,
+                                      size: 11,
+                                      color: Color(0xFFD97706),
+                                    ),
+                                    const SizedBox(width: 3),
+                                    Text(
+                                      'Último: há ${mesa.minutosDesdeUltimoPedido ?? 0}m',
+                                      style: const TextStyle(
+                                        fontSize: 9.5,
+                                        fontWeight: FontWeight.bold,
+                                        color: Color(0xFF92400E),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                Text(
+                                  'R\$ ${mesa.valorUltimoPedido.toStringAsFixed(2)}',
+                                  style: const TextStyle(
+                                    fontSize: 9.5,
+                                    fontWeight: FontWeight.w600,
+                                    color: Color(0xFF1E293B),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 2),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text(
+                                  'Total (${mesa.quantidadePedidos} ped):',
+                                  style: const TextStyle(
+                                    fontSize: 9.5,
+                                    color: Color(0xFF64748B),
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                                Text(
+                                  'R\$ ${mesa.valorTotalConsumo.toStringAsFixed(2)}',
+                                  style: const TextStyle(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.bold,
+                                    color: Color(0xFF15803D),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        )
+                      : Row(
+                          children: const [
+                            Icon(
+                              Icons.access_time_rounded,
+                              size: 11,
+                              color: Color(0xFF94A3B8),
+                            ),
+                            SizedBox(width: 4),
+                            Text(
+                              'Sem pedidos após check-in',
+                              style: TextStyle(
+                                fontSize: 9,
+                                color: Color(0xFF64748B),
+                                fontStyle: FontStyle.italic,
+                              ),
+                            ),
+                          ],
+                        ),
+                ),
               ] else ...[
                 Center(
                   child: Padding(

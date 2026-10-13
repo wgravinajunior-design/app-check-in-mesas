@@ -89,7 +89,68 @@ class CheckOutDialog extends StatelessWidget {
                 ],
               ),
             ),
-            const SizedBox(height: 14),
+            const SizedBox(height: 12),
+
+            // Resumo de Pedidos e Consumo (Modelo Pré-pago)
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF1F5F9),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: const Color(0xFFCBD5E1)),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: const [
+                      Icon(Icons.restaurant_menu_rounded, size: 16, color: Color(0xFFD97706)),
+                      SizedBox(width: 6),
+                      Text(
+                        'Consumo da Mesa (Modelo Pré-pago):',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF1E293B),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  if (mesa.temConsumo) ...[
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text('Total de Pedidos Realizados:', style: TextStyle(fontSize: 11, color: Color(0xFF475569))),
+                        Text('${mesa.quantidadePedidos} pedido(s)', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text('Último Pedido (há ${mesa.minutosDesdeUltimoPedido ?? 0} min):', style: const TextStyle(fontSize: 11, color: Color(0xFF475569))),
+                        Text('R\$ ${mesa.valorUltimoPedido.toStringAsFixed(2)}', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF92400E))),
+                      ],
+                    ),
+                    const Divider(height: 10),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text('Somatório Total Consumido:', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF1E293B))),
+                        Text('R\$ ${mesa.valorTotalConsumo.toStringAsFixed(2)}', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Color(0xFF15803D))),
+                      ],
+                    ),
+                  ] else ...[
+                    const Text(
+                      'Nenhum pedido lançado para esta mesa após o momento do check-in.',
+                      style: TextStyle(fontSize: 11, color: Color(0xFF64748B), fontStyle: FontStyle.italic),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
 
             // Faixa de status atingida
             Container(

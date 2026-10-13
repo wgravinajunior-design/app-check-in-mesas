@@ -1,4 +1,5 @@
 import 'package:equatable/equatable.dart';
+import 'consumo_mesa_resumo.dart';
 import 'ingresso.dart';
 import 'status_permanencia.dart';
 
@@ -12,6 +13,7 @@ class Mesa extends Equatable {
   final Ingresso? ingressoAtual;
   final Duration tempoDecorrido;
   final StatusPermanencia statusPermanencia;
+  final ConsumoMesaResumo? consumoResumo;
 
   const Mesa({
     required this.id,
@@ -22,6 +24,7 @@ class Mesa extends Equatable {
     this.ingressoAtual,
     this.tempoDecorrido = Duration.zero,
     this.statusPermanencia = StatusPermanencia.livre,
+    this.consumoResumo,
   });
 
   /// Identificador legível para o usuário (ex: "Mesa 01" ou "Mesa 005")
@@ -39,6 +42,21 @@ class Mesa extends Equatable {
   /// Data/Hora exata de entrada se a mesa estiver ocupada
   DateTime? get horaEntrada => ingressoAtual?.dtEntrada;
 
+  /// Retorna true se houver pedidos registrados para a mesa após o check-in
+  bool get temConsumo => consumoResumo != null && consumoResumo!.temPedidos;
+
+  /// Quantidade de minutos desde o último pedido efetuado
+  int? get minutosDesdeUltimoPedido => consumoResumo?.minutosDesdeUltimoPedido;
+
+  /// Valor do último pedido registrado
+  double get valorUltimoPedido => consumoResumo?.valorUltimoPedido ?? 0.0;
+
+  /// Somatório total de todos os pedidos realizados nessa mesa desde o check-in
+  double get valorTotalConsumo => consumoResumo?.valorTotalPedidos ?? 0.0;
+
+  /// Quantidade total de pedidos realizados na mesa desde o check-in
+  int get quantidadePedidos => consumoResumo?.quantidadePedidos ?? 0;
+
   Mesa copyWith({
     int? id,
     String? codigo,
@@ -49,6 +67,8 @@ class Mesa extends Equatable {
     bool clearIngressoAtual = false,
     Duration? tempoDecorrido,
     StatusPermanencia? statusPermanencia,
+    ConsumoMesaResumo? consumoResumo,
+    bool clearConsumoResumo = false,
   }) {
     return Mesa(
       id: id ?? this.id,
@@ -59,6 +79,7 @@ class Mesa extends Equatable {
       ingressoAtual: clearIngressoAtual ? null : (ingressoAtual ?? this.ingressoAtual),
       tempoDecorrido: tempoDecorrido ?? this.tempoDecorrido,
       statusPermanencia: statusPermanencia ?? this.statusPermanencia,
+      consumoResumo: clearConsumoResumo ? null : (consumoResumo ?? this.consumoResumo),
     );
   }
 
@@ -72,5 +93,6 @@ class Mesa extends Equatable {
         ingressoAtual,
         tempoDecorrido,
         statusPermanencia,
+        consumoResumo,
       ];
 }
