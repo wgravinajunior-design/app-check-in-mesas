@@ -1,4 +1,6 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../core/services/app_update_service.dart';
 import '../../core/theme/app_theme.dart';
@@ -40,10 +42,15 @@ class _MesaGridScreenState extends State<MesaGridScreen> {
   String _filtroAtivo = 'TODAS';
   final TextEditingController _buscaController = TextEditingController();
   String _termoBusca = '';
+  StreamSubscription<List<Mesa>>? _mesasLiberadasSub;
 
   @override
   void initState() {
     super.initState();
+    _mesasLiberadasSub = context.read<MesaCubit>().mesasLiberadasStream.listen((mesasLiberadas) {
+      if (!mounted || mesasLiberadas.isEmpty) return;
+      _mostrarPopupMesasLiberadas(mesasLiberadas);
+    });
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _checarAtualizacao(silencioso: true);
     });
@@ -51,8 +58,110 @@ class _MesaGridScreenState extends State<MesaGridScreen> {
 
   @override
   void dispose() {
+    _mesasLiberadasSub?.cancel();
     _buscaController.dispose();
     super.dispose();
+  }
+
+  void _mostrarPopupMesasLiberadas(List<Mesa> liberadas) {
+    if (!mounted) return;
+
+    // Retorno de som e vibração garantido na tela
+    HapticFeedback.vibrate();
+    SystemSound.play(SystemSoundType.alert);
+
+    showDialog(
+      context: context,
+      barrierDismissible: true,
+      builder: (dialogCtx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        titlePadding: const EdgeInsets.fromLTRB(20, 20, 20, 10),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+        actionsPadding: const EdgeInsets.fromLTRB(20, 10, 20, 16),
+        title: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: const Color(0xFFDCFCE7),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: const Icon(
+                Icons.check_circle_rounded,
+                color: Color(0xFF16A34A),
+                size: 26,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                liberadas.length == 1 ? 'Mesa Liberada!' : 'Mesas Liberadas!',
+                style: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 18,
+                  color: Color(0xFF0F172A),
+                ),
+              ),
+            ),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              liberadas.length == 1
+                  ? 'A mesa abaixo saiu do status ocupada e agora está livre:'
+                  : 'As mesas abaixo saíram do status ocupada e agora estão livres:',
+              style: const TextStyle(fontSize: 13, color: Color(0xFF475569)),
+            ),
+            const SizedBox(height: 14),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: liberadas.map((m) {
+                return Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFE8F5E9),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: const Color(0xFF81C784), width: 1.2),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.table_restaurant_rounded, size: 18, color: Color(0xFF2E7D32)),
+                      const SizedBox(width: 6),
+                      Text(
+                        m.nomeExibicao,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 15,
+                          color: Color(0xFF1B5E20),
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              }).toList(),
+            ),
+          ],
+        ),
+        actions: [
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF16A34A),
+              foregroundColor: Colors.white,
+              elevation: 0,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 10),
+            ),
+            onPressed: () => Navigator.of(dialogCtx).pop(),
+            child: const Text('OK, Entendido', style: TextStyle(fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
   }
 
   Future<void> _checarAtualizacao({bool silencioso = false}) async {
@@ -162,12 +271,12 @@ class _MesaGridScreenState extends State<MesaGridScreen> {
           if (mostrarAmbasAbas) {
             bodyContent = TabBarView(
               children: [
-                _buildMesasView(),
+                _buildMesasView(config),
                 const ComandaTabView(),
               ],
             );
           } else if (sincronizarMesas) {
-            bodyContent = _buildMesasView();
+            bodyContent = _buildMesasView(config);
           } else if (sincronizarComandas) {
             bodyContent = const ComandaTabView();
           } else {
@@ -349,7 +458,7 @@ class _MesaGridScreenState extends State<MesaGridScreen> {
     );
   }
 
-  Widget _buildMesasView() {
+  Widget _buildMesasView(AppConfig config) {
     return BlocConsumer<MesaCubit, MesaState>(
       listener: (context, state) {
         if (state is MesaError) {
@@ -439,13 +548,14 @@ class _MesaGridScreenState extends State<MesaGridScreen> {
                               crossAxisCount: crossAxisCount,
                               crossAxisSpacing: 8,
                               mainAxisSpacing: 8,
-                              childAspectRatio: constraints.maxWidth > 600 ? 1.05 : 0.95,
+                              childAspectRatio: constraints.maxWidth > 600 ? 1.05 : 0.88,
                             ),
                             itemCount: mesasFiltradas.length,
                             itemBuilder: (context, index) {
                               final mesa = mesasFiltradas[index];
                               return MesaCardWidget(
                                 mesa: mesa,
+                                config: config,
                                 onTap: () => _tratarCliqueMesa(
                                     context, mesa, state.mesas),
                               );

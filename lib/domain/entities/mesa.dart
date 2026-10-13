@@ -19,7 +19,7 @@ class Mesa extends Equatable {
     required this.id,
     required this.codigo,
     this.descricao,
-    this.numeroPessoas = 4,
+    this.numeroPessoas = 0,
     required this.isOcupada,
     this.ingressoAtual,
     this.tempoDecorrido = Duration.zero,

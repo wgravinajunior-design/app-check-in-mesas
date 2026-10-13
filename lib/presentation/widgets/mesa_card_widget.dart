@@ -1,17 +1,53 @@
 import 'package:flutter/material.dart';
 import '../../core/utils/time_formatter.dart';
+import '../../domain/entities/app_config.dart';
 import '../../domain/entities/mesa.dart';
 import '../../domain/entities/status_permanencia.dart';
 
 class MesaCardWidget extends StatelessWidget {
   final Mesa mesa;
   final VoidCallback onTap;
+  final AppConfig? config;
 
   const MesaCardWidget({
     super.key,
     required this.mesa,
     required this.onTap,
+    this.config,
   });
+
+  /// Determina as cores e o ícone do tempo do último pedido conforme a configuração
+  static ({Color corTexto, Color corFundo, Color corBorda, IconData icone}) _obterEstiloTempoPedido(
+    int minutos,
+    int tempoAlerta,
+    int tempoLimite,
+  ) {
+    if (minutos <= tempoAlerta) {
+      // Normal / recente
+      return (
+        corTexto: const Color(0xFF15803D), // Verde escuro
+        corFundo: const Color(0xFFDCFCE7), // Fundo verde claro
+        corBorda: const Color(0xFF86EFAC),
+        icone: Icons.fastfood_rounded,
+      );
+    } else if (minutos <= tempoLimite) {
+      // Alerta de tolerância
+      return (
+        corTexto: const Color(0xFFC2410C), // Laranja alerta
+        corFundo: const Color(0xFFFEF3C7), // Fundo amarelo claro
+        corBorda: const Color(0xFFFCD34D),
+        icone: Icons.warning_amber_rounded,
+      );
+    } else {
+      // Limite excedido
+      return (
+        corTexto: const Color(0xFFB91C1C), // Vermelho perigo/excedido
+        corFundo: const Color(0xFFFEE2E2), // Fundo vermelho suave
+        corBorda: const Color(0xFFFCA5A5),
+        icone: Icons.alarm_on_rounded,
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -19,6 +55,9 @@ class MesaCardWidget extends StatelessWidget {
     final corPrimaria = status.corPrimaria;
     final corFundo = status.corFundoClara;
     final bool isExcedida = status == StatusPermanencia.limiteExcedido;
+
+    final int tempoAlerta = config?.tempoAlertaMinutos ?? 90;
+    final int tempoLimite = config?.tempoLimiteMinutos ?? 120;
 
     return Card(
       elevation: isExcedida ? 4 : 1.5,
@@ -106,18 +145,46 @@ class MesaCardWidget extends StatelessWidget {
 
               const SizedBox(height: 4),
 
-              // Corpo Central: Horário de Entrada e Cronômetro
+              // Corpo Central: Horário de Entrada, Quantidade de Pessoas e Cronômetro
               if (mesa.isOcupada) ...[
                 Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    const Icon(Icons.login_rounded, size: 12, color: Colors.blueGrey),
-                    const SizedBox(width: 4),
-                    Text(
-                      'Entrada: ${TimeFormatter.formatTime(mesa.horaEntrada)}',
-                      style: const TextStyle(
-                        fontSize: 11,
-                        color: Color(0xFF475569),
-                        fontWeight: FontWeight.w500,
+                    Row(
+                      children: [
+                        const Icon(Icons.login_rounded, size: 12, color: Colors.blueGrey),
+                        const SizedBox(width: 4),
+                        Text(
+                          'Entrada: ${TimeFormatter.formatTime(mesa.horaEntrada)}',
+                          style: const TextStyle(
+                            fontSize: 11,
+                            color: Color(0xFF475569),
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF1F5F9),
+                        borderRadius: BorderRadius.circular(4),
+                        border: Border.all(color: const Color(0xFFCBD5E1), width: 0.7),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.people_alt_rounded, size: 11, color: Color(0xFF475569)),
+                          const SizedBox(width: 3),
+                          Text(
+                            mesa.numeroPessoas > 0 ? '${mesa.numeroPessoas} pess.' : '0 pess.',
+                            style: const TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                              color: Color(0xFF334155),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   ],
@@ -153,7 +220,7 @@ class MesaCardWidget extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 3),
-                // Seção Consumo & Último Pedido (Modelo Pré-pago)
+                // Seção Consumo & Último Pedido (Colorido conforme Config)
                 Container(
                   width: double.infinity,
                   padding: const EdgeInsets.symmetric(vertical: 3, horizontal: 5),
@@ -166,81 +233,128 @@ class MesaCardWidget extends StatelessWidget {
                     ),
                   ),
                   child: mesa.temConsumo
-                      ? Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      ? Builder(
+                          builder: (context) {
+                            final int minutosUltimo = mesa.minutosDesdeUltimoPedido ?? 0;
+                            final estilo = _obterEstiloTempoPedido(
+                              minutosUltimo,
+                              tempoAlerta,
+                              tempoLimite,
+                            );
+
+                            return Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                   children: [
-                                    const Icon(
-                                      Icons.fastfood_rounded,
-                                      size: 11,
-                                      color: Color(0xFFD97706),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+                                      decoration: BoxDecoration(
+                                        color: estilo.corFundo,
+                                        borderRadius: BorderRadius.circular(4),
+                                        border: Border.all(color: estilo.corBorda, width: 0.8),
+                                      ),
+                                      child: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Icon(
+                                            estilo.icone,
+                                            size: 11,
+                                            color: estilo.corTexto,
+                                          ),
+                                          const SizedBox(width: 3),
+                                          Text(
+                                            'Último: há ${minutosUltimo}m',
+                                            style: TextStyle(
+                                              fontSize: 9.5,
+                                              fontWeight: FontWeight.bold,
+                                              color: estilo.corTexto,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
                                     ),
-                                    const SizedBox(width: 3),
                                     Text(
-                                      'Último: há ${mesa.minutosDesdeUltimoPedido ?? 0}m',
+                                      'R\$ ${mesa.valorUltimoPedido.toStringAsFixed(2)}',
                                       style: const TextStyle(
                                         fontSize: 9.5,
-                                        fontWeight: FontWeight.bold,
-                                        color: Color(0xFF92400E),
+                                        fontWeight: FontWeight.w600,
+                                        color: Color(0xFF1E293B),
                                       ),
                                     ),
                                   ],
                                 ),
-                                Text(
-                                  'R\$ ${mesa.valorUltimoPedido.toStringAsFixed(2)}',
-                                  style: const TextStyle(
-                                    fontSize: 9.5,
-                                    fontWeight: FontWeight.w600,
-                                    color: Color(0xFF1E293B),
-                                  ),
+                                const SizedBox(height: 2),
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Text(
+                                      'Total (${mesa.quantidadePedidos} ped):',
+                                      style: const TextStyle(
+                                        fontSize: 9.5,
+                                        color: Color(0xFF64748B),
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                    Text(
+                                      'R\$ ${mesa.valorTotalConsumo.toStringAsFixed(2)}',
+                                      style: const TextStyle(
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.bold,
+                                        color: Color(0xFF15803D),
+                                      ),
+                                    ),
+                                  ],
                                 ),
                               ],
-                            ),
-                            const SizedBox(height: 2),
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Text(
-                                  'Total (${mesa.quantidadePedidos} ped):',
-                                  style: const TextStyle(
-                                    fontSize: 9.5,
-                                    color: Color(0xFF64748B),
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                ),
-                                Text(
-                                  'R\$ ${mesa.valorTotalConsumo.toStringAsFixed(2)}',
-                                  style: const TextStyle(
-                                    fontSize: 10,
-                                    fontWeight: FontWeight.bold,
-                                    color: Color(0xFF15803D),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ],
+                            );
+                          },
                         )
-                      : Row(
-                          children: const [
-                            Icon(
-                              Icons.access_time_rounded,
-                              size: 11,
-                              color: Color(0xFF94A3B8),
-                            ),
-                            SizedBox(width: 4),
-                            Text(
-                              'Sem pedidos após check-in',
-                              style: TextStyle(
-                                fontSize: 9,
-                                color: Color(0xFF64748B),
-                                fontStyle: FontStyle.italic,
+                      : Builder(
+                          builder: (context) {
+                            final int minutosSemPedido = mesa.tempoDecorrido.inMinutes;
+                            final bool temAlerta = minutosSemPedido > tempoAlerta;
+                            final estilo = _obterEstiloTempoPedido(
+                              minutosSemPedido,
+                              tempoAlerta,
+                              tempoLimite,
+                            );
+
+                            return Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1.5),
+                              decoration: BoxDecoration(
+                                color: temAlerta ? estilo.corFundo : Colors.transparent,
+                                borderRadius: BorderRadius.circular(4),
+                                border: temAlerta ? Border.all(color: estilo.corBorda, width: 0.8) : null,
                               ),
-                            ),
-                          ],
+                              child: Row(
+                                children: [
+                                  Icon(
+                                    temAlerta ? estilo.icone : Icons.access_time_rounded,
+                                    size: 11,
+                                    color: temAlerta ? estilo.corTexto : const Color(0xFF94A3B8),
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Expanded(
+                                    child: Text(
+                                      minutosSemPedido > 0
+                                          ? 'Sem pedidos há ${minutosSemPedido}m'
+                                          : 'Sem pedidos após check-in',
+                                      style: TextStyle(
+                                        fontSize: 9,
+                                        fontWeight: temAlerta ? FontWeight.bold : FontWeight.normal,
+                                        color: temAlerta ? estilo.corTexto : const Color(0xFF64748B),
+                                        fontStyle: temAlerta ? FontStyle.normal : FontStyle.italic,
+                                      ),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            );
+                          },
                         ),
                 ),
               ] else ...[

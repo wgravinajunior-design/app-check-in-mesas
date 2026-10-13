@@ -19,8 +19,34 @@ class MesaCubit extends Cubit<MesaState> {
   AppConfig _config = const AppConfig();
   final Set<int> _mesasAlertadas = {};
   final Set<int> _mesasExcedidas = {};
+  Set<int> _mesasAnteriormenteOcupadas = {};
+  final StreamController<List<Mesa>> _mesasLiberadasController =
+      StreamController<List<Mesa>>.broadcast();
+
+  Stream<List<Mesa>> get mesasLiberadasStream => _mesasLiberadasController.stream;
   int _contadorTicks = 0;
   bool _sincronizandoConsumo = false;
+
+  void _notificarMesasLiberadas(List<Mesa> liberadas) {
+    if (liberadas.isEmpty) return;
+
+    if (_config.alertaSonoro) {
+      try {
+        HapticFeedback.vibrate();
+        HapticFeedback.heavyImpact();
+        SystemSound.play(SystemSoundType.alert);
+        Future.delayed(const Duration(milliseconds: 250), () {
+          SystemSound.play(SystemSoundType.alert);
+        });
+      } catch (e) {
+        debugPrint('Erro ao acionar som/vibração: $e');
+      }
+    }
+
+    if (!_mesasLiberadasController.isClosed) {
+      _mesasLiberadasController.add(liberadas);
+    }
+  }
 
   MesaCubit({
     required this.mesaRepository,
@@ -64,6 +90,20 @@ class MesaCubit extends Cubit<MesaState> {
               await mesaRepository.carregarMesasCompletasFirebird(config: _config);
           if (mesasFirebird.isNotEmpty) {
             final agora = DateTime.now();
+
+            if (_mesasAnteriormenteOcupadas.isNotEmpty) {
+              final liberadas = mesasFirebird
+                  .where((m) => _mesasAnteriormenteOcupadas.contains(m.id) && !m.isOcupada)
+                  .toList();
+              if (liberadas.isNotEmpty) {
+                _notificarMesasLiberadas(liberadas);
+              }
+            }
+            _mesasAnteriormenteOcupadas = mesasFirebird
+                .where((m) => m.isOcupada)
+                .map((m) => m.id)
+                .toSet();
+
             emit(MesaLoaded(
               mesas: mesasFirebird,
               ultimoTick: agora,
@@ -137,11 +177,32 @@ class MesaCubit extends Cubit<MesaState> {
         if (mesa.isOcupada) {
           final consumo = mapaConsumo[mesa.id];
           if (consumo != null) {
-            return mesa.copyWith(consumoResumo: consumo.comHoraAtual(agora));
+            final consumoAtualizado = consumo.comHoraAtual(agora);
+            final novoStatus = _calcularStatusPermanencia(
+              mesa.tempoDecorrido,
+              minutosUltimoPedido: consumoAtualizado.minutosDesdeUltimoPedido,
+            );
+            return mesa.copyWith(
+              consumoResumo: consumoAtualizado,
+              statusPermanencia: novoStatus,
+            );
           }
         }
         return mesa;
       }).toList();
+
+      if (_mesasAnteriormenteOcupadas.isNotEmpty) {
+        final liberadas = mesasCompletasComConsumo
+            .where((m) => _mesasAnteriormenteOcupadas.contains(m.id) && !m.isOcupada)
+            .toList();
+        if (liberadas.isNotEmpty) {
+          _notificarMesasLiberadas(liberadas);
+        }
+      }
+      _mesasAnteriormenteOcupadas = mesasCompletasComConsumo
+          .where((m) => m.isOcupada)
+          .map((m) => m.id)
+          .toSet();
 
       emit(MesaLoaded(
         mesas: mesasCompletasComConsumo,
@@ -238,8 +299,11 @@ class MesaCubit extends Cubit<MesaState> {
       }
 
       final Duration novoDecorrido = agora.difference(mesa.ingressoAtual!.dtEntrada!);
-      final StatusPermanencia novoStatus = _calcularStatusPermanencia(novoDecorrido);
       final ConsumoMesaResumo? novoConsumo = mesa.consumoResumo?.comHoraAtual(agora);
+      final StatusPermanencia novoStatus = _calcularStatusPermanencia(
+        novoDecorrido,
+        minutosUltimoPedido: novoConsumo?.minutosDesdeUltimoPedido,
+      );
 
       if (novoStatus == StatusPermanencia.alertaTolerancia &&
           !_mesasAlertadas.contains(mesa.id)) {
@@ -273,15 +337,15 @@ class MesaCubit extends Cubit<MesaState> {
     }
   }
 
-  StatusPermanencia _calcularStatusPermanencia(Duration duracao) {
-    final int minutos = duracao.inMinutes;
+  StatusPermanencia _calcularStatusPermanencia(Duration duracao, {int? minutosUltimoPedido}) {
+    final int minutos = minutosUltimoPedido ?? duracao.inMinutes;
 
     if (minutos <= _config.tempoAlertaMinutos) {
-      return StatusPermanencia.normal; // Até 1h30m -> Azul / Neutro
+      return StatusPermanencia.normal; // Até alerta -> Azul / Neutro
     } else if (minutos <= _config.tempoLimiteMinutos) {
-      return StatusPermanencia.alertaTolerancia; // 1h30m a 2h00m -> Amarelo / Laranja
+      return StatusPermanencia.alertaTolerancia; // Alerta até limite -> Amarelo / Laranja
     } else {
-      return StatusPermanencia.limiteExcedido; // Mais de 2h00m -> Vermelho em destaque
+      return StatusPermanencia.limiteExcedido; // Acima do limite -> Vermelho em destaque
     }
   }
 
@@ -399,6 +463,8 @@ class MesaCubit extends Cubit<MesaState> {
 
       _mesasAlertadas.remove(mesa.id);
       _mesasExcedidas.remove(mesa.id);
+      _mesasAnteriormenteOcupadas.remove(mesa.id);
+      _notificarMesasLiberadas([mesa]);
 
       final List<Mesa> novasMesas = estadoAtual.mesas.map((m) {
         if (m.id == mesa.id) {
@@ -506,6 +572,7 @@ class MesaCubit extends Cubit<MesaState> {
   @override
   Future<void> close() {
     _timerTicker?.cancel();
+    _mesasLiberadasController.close();
     return super.close();
   }
 }

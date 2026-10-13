@@ -6,6 +6,7 @@ import 'package:apk_check_in/core/utils/time_formatter.dart';
 import 'package:apk_check_in/domain/entities/app_config.dart';
 import 'package:apk_check_in/domain/entities/comanda.dart';
 import 'package:apk_check_in/domain/entities/consumo_mesa_resumo.dart';
+import 'package:apk_check_in/domain/entities/mesa.dart';
 import 'package:apk_check_in/domain/entities/pedido_resumo.dart';
 import 'package:apk_check_in/domain/entities/status_permanencia.dart';
 
@@ -187,6 +188,16 @@ void main() {
     test('Status de TB_INGRESSO deve seguir padrão ERP Firebird (E e F)', () {
       expect(AppConstants.statusIngressoAberto, equals('E'));
       expect(AppConstants.statusIngressoFinalizado, equals('F'));
+    });
+
+    test('Entidade Mesa deve armazenar campo de pessoas retornado da consulta SQL', () {
+      const mesa = Mesa(
+        id: 5,
+        codigo: '005',
+        numeroPessoas: 6,
+        isOcupada: true,
+      );
+      expect(mesa.numeroPessoas, equals(6));
     });
   });
 }

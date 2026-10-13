@@ -272,8 +272,8 @@ ORDER BY MSA_ID;
     return MesasPadraoMansao.obterMesasPadrao(config.empresaId);
   }
 
-  StatusPermanencia _calcularStatus(Duration duracao, AppConfig config) {
-    final int minutos = duracao.inMinutes;
+  StatusPermanencia _calcularStatus(Duration duracao, AppConfig config, {int? minutosUltimoPedido}) {
+    final int minutos = minutosUltimoPedido ?? duracao.inMinutes;
     if (minutos <= config.tempoAlertaMinutos) {
       return StatusPermanencia.normal;
     } else if (minutos <= config.tempoLimiteMinutos) {
@@ -438,7 +438,10 @@ ORDER BY MSA_ID;
 
         if (isOcupada) {
           decorrido = agora.difference(dtEntrada);
-          statusPerm = _calcularStatus(decorrido, config);
+          final int? minutosDesdeUltimo = dtUltimoConsumo != null
+              ? agora.difference(dtUltimoConsumo).inMinutes
+              : null;
+          statusPerm = _calcularStatus(decorrido, config, minutosUltimoPedido: minutosDesdeUltimo);
           ingresso = Ingresso(
             empresaId: config.empresaId,
             id: id,
@@ -447,10 +450,6 @@ ORDER BY MSA_ID;
             codigoMesa: codigo,
             observacao: 'Check-in ativo retaguarda',
           );
-
-          final int? minutosDesdeUltimo = dtUltimoConsumo != null
-              ? agora.difference(dtUltimoConsumo).inMinutes
-              : null;
 
           PedidoResumo? ultimoPedido;
           if (dtUltimoConsumo != null) {
@@ -481,7 +480,7 @@ ORDER BY MSA_ID;
             id: id,
             codigo: codigo.isNotEmpty ? codigo : id.toString(),
             descricao: 'Mesa $codigo',
-            numeroPessoas: qtdPessoas > 0 ? qtdPessoas : 4,
+            numeroPessoas: qtdPessoas,
             isOcupada: isOcupada,
             ingressoAtual: ingresso,
             tempoDecorrido: decorrido,
@@ -569,7 +568,10 @@ ORDER BY MSA_ID;
 
                 if (isOcupada) {
                   decorrido = agora.difference(dtEntrada);
-                  statusPerm = _calcularStatus(decorrido, config);
+                  final int? minutosDesdeUltimo = dtUltimoConsumo != null
+                      ? agora.difference(dtUltimoConsumo).inMinutes
+                      : null;
+                  statusPerm = _calcularStatus(decorrido, config, minutosUltimoPedido: minutosDesdeUltimo);
                   ingresso = Ingresso(
                     empresaId: config.empresaId,
                     id: id,
@@ -578,10 +580,6 @@ ORDER BY MSA_ID;
                     codigoMesa: codigo,
                     observacao: 'Check-in ativo retaguarda',
                   );
-
-                  final int? minutosDesdeUltimo = dtUltimoConsumo != null
-                      ? agora.difference(dtUltimoConsumo).inMinutes
-                      : null;
 
                   PedidoResumo? ultimoPedido;
                   if (dtUltimoConsumo != null) {
@@ -612,7 +610,7 @@ ORDER BY MSA_ID;
                     id: id,
                     codigo: codigo.isNotEmpty ? codigo : id.toString(),
                     descricao: 'Mesa $codigo',
-                    numeroPessoas: qtdPessoas > 0 ? qtdPessoas : 4,
+                    numeroPessoas: qtdPessoas,
                     isOcupada: isOcupada,
                     ingressoAtual: ingresso,
                     tempoDecorrido: decorrido,

@@ -60,6 +60,12 @@ class CheckOutDialog extends StatelessWidget {
                   ),
                   const Divider(height: 14),
                   _buildLinhaResumo(
+                    label: 'Quantidade de Pessoas:',
+                    valor: '${mesa.numeroPessoas} ${mesa.numeroPessoas == 1 ? "pessoa" : "pessoas"}',
+                    icone: Icons.people_alt_rounded,
+                  ),
+                  const Divider(height: 14),
+                  _buildLinhaResumo(
                     label: 'Hora de Saída:',
                     valor: TimeFormatter.formatDateTime(agora),
                     icone: Icons.logout_rounded,
