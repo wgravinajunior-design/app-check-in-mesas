@@ -93,6 +93,20 @@ install(DIRECTORY "${NATIVE_ASSETS_DIR}"
    DESTINATION "${INSTALL_BUNDLE_LIB_DIR}"
    COMPONENT Runtime)
 
+# Install Firebird Client libraries, plugins and runtime dependencies
+set(FIREBIRD_LIBS_DIR "${CMAKE_CURRENT_SOURCE_DIR}/runner/firebird_libs")
+if(EXISTS "${FIREBIRD_LIBS_DIR}")
+  file(GLOB FIREBIRD_FILES "${FIREBIRD_LIBS_DIR}/*.*")
+  install(FILES ${FIREBIRD_FILES}
+    DESTINATION "${INSTALL_BUNDLE_LIB_DIR}"
+    COMPONENT Runtime)
+  if(EXISTS "${FIREBIRD_LIBS_DIR}/plugins")
+    install(DIRECTORY "${FIREBIRD_LIBS_DIR}/plugins"
+      DESTINATION "${INSTALL_BUNDLE_LIB_DIR}"
+      COMPONENT Runtime)
+  endif()
+endif()
+
 # Fully re-copy the assets directory on each build to avoid having stale files
 # from a previous install.
 set(FLUTTER_ASSET_DIR_NAME "flutter_assets")
