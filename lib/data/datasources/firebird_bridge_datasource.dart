@@ -366,21 +366,21 @@ SELECT
   (SELECT SUM(PV.PEV_VALOR_TOTAL)
    FROM TB_PEDIDO_VENDA PV
    WHERE PV.PEV_STATUS <> 'C'
-     AND PV.PEV_DT_LANCAMENTO >= INGRESSOS.ING_DT_ENTRADA
-     AND PV.PEV_MESA = ING_CODIGO) AS TOTAL_CONSUMIDO,
-  (SELECT MAX(I.PEVI_DT_LANCAMENTO)
+     AND PV.PEV_DT_LANCAMENTO >= DATEADD(-2 MINUTE TO INGRESSOS.ING_DT_ENTRADA)
+     AND (PV.PEV_MESA = MESAS.MSA_ID OR PV.PEV_MESA = MESAS.MSA_CODIGO OR PV.PEV_MESA = INGRESSOS.ING_CODIGO)) AS TOTAL_CONSUMIDO,
+  (SELECT COALESCE(MAX(I.PEVI_DT_LANCAMENTO), MAX(PV.PEV_DT_LANCAMENTO))
    FROM TB_PEDIDO_VENDA PV
-   INNER JOIN TB_PEDIDO_VENDA_ITEM I ON I.PEVI_EMPRESA = PV.PEV_EMPRESA AND I.PEVI_PEDIDO_VENDA = PV.PEV_ID
+   LEFT JOIN TB_PEDIDO_VENDA_ITEM I ON I.PEVI_PEDIDO_VENDA = PV.PEV_ID AND (I.PEVI_EMPRESA = PV.PEV_EMPRESA OR I.PEVI_EMPRESA IS NULL)
    WHERE PV.PEV_STATUS <> 'C'
-     AND PV.PEV_DT_LANCAMENTO >= INGRESSOS.ING_DT_ENTRADA
-     AND PV.PEV_MESA = INGRESSOS.ING_CODIGO) AS ULTIMO_CONSUMO,
+     AND PV.PEV_DT_LANCAMENTO >= DATEADD(-2 MINUTE TO INGRESSOS.ING_DT_ENTRADA)
+     AND (PV.PEV_MESA = MESAS.MSA_ID OR PV.PEV_MESA = MESAS.MSA_CODIGO OR PV.PEV_MESA = INGRESSOS.ING_CODIGO)) AS ULTIMO_CONSUMO,
   (SELECT SUM(PV.PEV_QTDE_PESSOAS)
    FROM TB_PEDIDO_VENDA PV
    WHERE PV.PEV_STATUS <> 'C'
-     AND PV.PEV_DT_LANCAMENTO >= INGRESSOS.ING_DT_ENTRADA
-     AND PV.PEV_MESA = INGRESSOS.ING_CODIGO) AS QTDE_PESSOAS
+     AND PV.PEV_DT_LANCAMENTO >= DATEADD(-2 MINUTE TO INGRESSOS.ING_DT_ENTRADA)
+     AND (PV.PEV_MESA = MESAS.MSA_ID OR PV.PEV_MESA = MESAS.MSA_CODIGO OR PV.PEV_MESA = INGRESSOS.ING_CODIGO)) AS QTDE_PESSOAS
 FROM MESAS
-LEFT JOIN INGRESSOS ON INGRESSOS.ING_CODIGO = MESAS.MSA_ID
+LEFT JOIN INGRESSOS ON (INGRESSOS.ING_CODIGO = CAST(MESAS.MSA_ID AS VARCHAR(20)) OR INGRESSOS.ING_CODIGO = MESAS.MSA_CODIGO)
 ORDER BY MSA_ID;
 ''';
 
@@ -415,7 +415,8 @@ ORDER BY MSA_ID;
         if (dtEntradaBruta is DateTime) {
           dtEntrada = dtEntradaBruta;
         } else if (dtEntradaBruta != null) {
-          dtEntrada = DateTime.tryParse(dtEntradaBruta.toString().trim());
+          final str = dtEntradaBruta.toString().trim();
+          dtEntrada = DateTime.tryParse(str) ?? DateTime.tryParse(str.replaceAll(' ', 'T'));
         }
 
         final double totalConsumido = double.tryParse(row['TOTAL_CONSUMIDO']?.toString().replaceAll(',', '.') ?? '0.0') ?? 0.0;
@@ -425,7 +426,8 @@ ORDER BY MSA_ID;
         if (dtUltimoConsumoBruta is DateTime) {
           dtUltimoConsumo = dtUltimoConsumoBruta;
         } else if (dtUltimoConsumoBruta != null) {
-          dtUltimoConsumo = DateTime.tryParse(dtUltimoConsumoBruta.toString().trim());
+          final str = dtUltimoConsumoBruta.toString().trim();
+          dtUltimoConsumo = DateTime.tryParse(str) ?? DateTime.tryParse(str.replaceAll(' ', 'T'));
         }
 
         final int qtdPessoas = int.tryParse(row['QTDE_PESSOAS']?.toString() ?? '0') ?? 0;
@@ -438,8 +440,10 @@ ORDER BY MSA_ID;
 
         if (isOcupada) {
           decorrido = agora.difference(dtEntrada);
-          final int? minutosDesdeUltimo = dtUltimoConsumo != null
-              ? agora.difference(dtUltimoConsumo).inMinutes
+          // Se houver consumo registrado mas data do item for nula, recorre à data de entrada como fallback
+          final DateTime? dtConsumoEfetivo = dtUltimoConsumo ?? (totalConsumido > 0 ? dtEntrada : null);
+          final int? minutosDesdeUltimo = dtConsumoEfetivo != null
+              ? agora.difference(dtConsumoEfetivo).inMinutes
               : null;
           statusPerm = _calcularStatus(decorrido, config, minutosUltimoPedido: minutosDesdeUltimo);
           ingresso = Ingresso(
@@ -452,12 +456,12 @@ ORDER BY MSA_ID;
           );
 
           PedidoResumo? ultimoPedido;
-          if (dtUltimoConsumo != null) {
+          if (dtConsumoEfetivo != null) {
             ultimoPedido = PedidoResumo(
               id: 1,
               empresaId: config.empresaId,
               mesaId: id,
-              dataHoraLancamento: dtUltimoConsumo,
+              dataHoraLancamento: dtConsumoEfetivo,
               valorTotal: totalConsumido,
               status: 'F',
             );
@@ -471,7 +475,7 @@ ORDER BY MSA_ID;
             minutosDesdeUltimoPedido: minutosDesdeUltimo,
             valorUltimoPedido: totalConsumido,
             valorTotalPedidos: totalConsumido,
-            quantidadePedidos: (totalConsumido > 0 || dtUltimoConsumo != null) ? 1 : 0,
+            quantidadePedidos: (totalConsumido > 0 || dtConsumoEfetivo != null) ? 1 : 0,
           );
         }
 
@@ -518,11 +522,11 @@ SELECT
   TRIM(MSA_CODIGO) || ';' ||
   COALESCE(TRIM(ING_CODIGO), '') || ';' ||
   COALESCE(CAST(ING_DT_ENTRADA AS VARCHAR(30)), '') || ';' ||
-  COALESCE(CAST((SELECT SUM(PV.PEV_VALOR_TOTAL) FROM TB_PEDIDO_VENDA PV WHERE PV.PEV_STATUS <> 'C' AND PV.PEV_DT_LANCAMENTO >= INGRESSOS.ING_DT_ENTRADA AND PV.PEV_MESA = ING_CODIGO) AS VARCHAR(30)), '0') || ';' ||
-  COALESCE(CAST((SELECT MAX(I.PEVI_DT_LANCAMENTO) FROM TB_PEDIDO_VENDA PV INNER JOIN TB_PEDIDO_VENDA_ITEM I ON I.PEVI_EMPRESA = PV.PEV_EMPRESA AND I.PEVI_PEDIDO_VENDA = PV.PEV_ID WHERE PV.PEV_STATUS <> 'C' AND PV.PEV_DT_LANCAMENTO >= INGRESSOS.ING_DT_ENTRADA AND PV.PEV_MESA = INGRESSOS.ING_CODIGO) AS VARCHAR(30)), '') || ';' ||
-  COALESCE(CAST((SELECT SUM(PV.PEV_QTDE_PESSOAS) FROM TB_PEDIDO_VENDA PV WHERE PV.PEV_STATUS <> 'C' AND PV.PEV_DT_LANCAMENTO >= INGRESSOS.ING_DT_ENTRADA AND PV.PEV_MESA = INGRESSOS.ING_CODIGO) AS VARCHAR(10)), '0')
+  COALESCE(CAST((SELECT SUM(PV.PEV_VALOR_TOTAL) FROM TB_PEDIDO_VENDA PV WHERE PV.PEV_STATUS <> 'C' AND PV.PEV_DT_LANCAMENTO >= DATEADD(-2 MINUTE TO INGRESSOS.ING_DT_ENTRADA) AND (PV.PEV_MESA = MESAS.MSA_ID OR PV.PEV_MESA = MESAS.MSA_CODIGO OR PV.PEV_MESA = INGRESSOS.ING_CODIGO)) AS VARCHAR(30)), '0') || ';' ||
+  COALESCE(CAST((SELECT COALESCE(MAX(I.PEVI_DT_LANCAMENTO), MAX(PV.PEV_DT_LANCAMENTO)) FROM TB_PEDIDO_VENDA PV LEFT JOIN TB_PEDIDO_VENDA_ITEM I ON I.PEVI_PEDIDO_VENDA = PV.PEV_ID AND (I.PEVI_EMPRESA = PV.PEV_EMPRESA OR I.PEVI_EMPRESA IS NULL) WHERE PV.PEV_STATUS <> 'C' AND PV.PEV_DT_LANCAMENTO >= DATEADD(-2 MINUTE TO INGRESSOS.ING_DT_ENTRADA) AND (PV.PEV_MESA = MESAS.MSA_ID OR PV.PEV_MESA = MESAS.MSA_CODIGO OR PV.PEV_MESA = INGRESSOS.ING_CODIGO)) AS VARCHAR(30)), '') || ';' ||
+  COALESCE(CAST((SELECT SUM(PV.PEV_QTDE_PESSOAS) FROM TB_PEDIDO_VENDA PV WHERE PV.PEV_STATUS <> 'C' AND PV.PEV_DT_LANCAMENTO >= DATEADD(-2 MINUTE TO INGRESSOS.ING_DT_ENTRADA) AND (PV.PEV_MESA = MESAS.MSA_ID OR PV.PEV_MESA = MESAS.MSA_CODIGO OR PV.PEV_MESA = INGRESSOS.ING_CODIGO)) AS VARCHAR(10)), '0')
 FROM MESAS
-LEFT JOIN INGRESSOS ON INGRESSOS.ING_CODIGO = MESAS.MSA_ID
+LEFT JOIN INGRESSOS ON (INGRESSOS.ING_CODIGO = CAST(MESAS.MSA_ID AS VARCHAR(20)) OR INGRESSOS.ING_CODIGO = MESAS.MSA_CODIGO)
 ORDER BY MSA_ID;
 ''';
         try {
@@ -552,10 +556,14 @@ ORDER BY MSA_ID;
                 final int id = int.tryParse(partes[0].trim()) ?? 0;
                 final String codigo = partes[1].trim();
                 final String dtEntradaStr = partes[3].trim();
-                final DateTime? dtEntrada = dtEntradaStr.isNotEmpty ? DateTime.tryParse(dtEntradaStr) : null;
+                final DateTime? dtEntrada = dtEntradaStr.isNotEmpty
+                    ? (DateTime.tryParse(dtEntradaStr) ?? DateTime.tryParse(dtEntradaStr.replaceAll(' ', 'T')))
+                    : null;
                 final double totalConsumido = double.tryParse(partes[4].trim().replaceAll(',', '.')) ?? 0.0;
                 final String dtUltimoConsumoStr = partes[5].trim();
-                final DateTime? dtUltimoConsumo = dtUltimoConsumoStr.isNotEmpty ? DateTime.tryParse(dtUltimoConsumoStr) : null;
+                final DateTime? dtUltimoConsumo = dtUltimoConsumoStr.isNotEmpty
+                    ? (DateTime.tryParse(dtUltimoConsumoStr) ?? DateTime.tryParse(dtUltimoConsumoStr.replaceAll(' ', 'T')))
+                    : null;
                 final int qtdPessoas = int.tryParse(partes[6].trim()) ?? 0;
 
                 if (id <= 0 && codigo.isEmpty) continue;
@@ -568,8 +576,9 @@ ORDER BY MSA_ID;
 
                 if (isOcupada) {
                   decorrido = agora.difference(dtEntrada);
-                  final int? minutosDesdeUltimo = dtUltimoConsumo != null
-                      ? agora.difference(dtUltimoConsumo).inMinutes
+                  final DateTime? dtConsumoEfetivo = dtUltimoConsumo ?? (totalConsumido > 0 ? dtEntrada : null);
+                  final int? minutosDesdeUltimo = dtConsumoEfetivo != null
+                      ? agora.difference(dtConsumoEfetivo).inMinutes
                       : null;
                   statusPerm = _calcularStatus(decorrido, config, minutosUltimoPedido: minutosDesdeUltimo);
                   ingresso = Ingresso(
@@ -582,12 +591,12 @@ ORDER BY MSA_ID;
                   );
 
                   PedidoResumo? ultimoPedido;
-                  if (dtUltimoConsumo != null) {
+                  if (dtConsumoEfetivo != null) {
                     ultimoPedido = PedidoResumo(
                       id: 1,
                       empresaId: config.empresaId,
                       mesaId: id,
-                      dataHoraLancamento: dtUltimoConsumo,
+                      dataHoraLancamento: dtConsumoEfetivo,
                       valorTotal: totalConsumido,
                       status: 'F',
                     );
@@ -601,7 +610,7 @@ ORDER BY MSA_ID;
                     minutosDesdeUltimoPedido: minutosDesdeUltimo,
                     valorUltimoPedido: totalConsumido,
                     valorTotalPedidos: totalConsumido,
-                    quantidadePedidos: (totalConsumido > 0 || dtUltimoConsumo != null) ? 1 : 0,
+                    quantidadePedidos: (totalConsumido > 0 || dtConsumoEfetivo != null) ? 1 : 0,
                   );
                 }
 
@@ -752,7 +761,9 @@ WHERE ING_EMPRESA = ${config.empresaId}
     final user = config.usuarioBanco.trim();
     final password = config.senhaBanco.trim();
     final int codigoInt = int.tryParse(codigoMesa) ?? mesaId;
-    final String dtSql = TimeFormatter.formatDateTimeSql(dataCheckIn);
+    final String dtSql = TimeFormatter.formatDateTimeSql(
+      dataCheckIn.subtract(const Duration(minutes: 2)),
+    );
 
     final sql = '''
 SELECT
@@ -763,7 +774,7 @@ SELECT
     COALESCE(PEV_VALOR_TOTAL, 0.0) AS PEV_VALOR_TOTAL,
     PEV_STATUS
 FROM TB_PEDIDO_VENDA
-WHERE PEV_EMPRESA = ${config.empresaId}
+WHERE (PEV_EMPRESA = ${config.empresaId} OR PEV_EMPRESA IS NULL)
   AND (PEV_MESA = $mesaId OR PEV_MESA = $codigoInt)
   AND PEV_DT_LANCAMENTO >= '$dtSql'
   AND COALESCE(PEV_STATUS, '') != 'C'
@@ -808,7 +819,7 @@ SELECT
     COALESCE(PEV_VALOR_TOTAL, 0.0) || ';' ||
     COALESCE(PEV_STATUS, 'F')
 FROM TB_PEDIDO_VENDA
-WHERE PEV_EMPRESA = ${config.empresaId}
+WHERE (PEV_EMPRESA = ${config.empresaId} OR PEV_EMPRESA IS NULL)
   AND (PEV_MESA = $mesaId OR PEV_MESA = $codigoInt)
   AND PEV_DT_LANCAMENTO >= '$dtSql'
   AND COALESCE(PEV_STATUS, '') != 'C'
@@ -895,7 +906,9 @@ ORDER BY PEV_DT_LANCAMENTO DESC;
     final databasePath = config.caminhoBanco.trim();
     final user = config.usuarioBanco.trim();
     final password = config.senhaBanco.trim();
-    final String dtSql = TimeFormatter.formatDateTimeSql(menorCheckIn);
+    final String dtSql = TimeFormatter.formatDateTimeSql(
+      menorCheckIn.subtract(const Duration(minutes: 2)),
+    );
     final String listaIds = identificadoresMesas.join(',');
 
     final sql = '''
@@ -907,7 +920,7 @@ SELECT
     COALESCE(PEV_VALOR_TOTAL, 0.0) AS PEV_VALOR_TOTAL,
     PEV_STATUS
 FROM TB_PEDIDO_VENDA
-WHERE PEV_EMPRESA = ${config.empresaId}
+WHERE (PEV_EMPRESA = ${config.empresaId} OR PEV_EMPRESA IS NULL)
   AND PEV_MESA IN ($listaIds)
   AND PEV_DT_LANCAMENTO >= '$dtSql'
   AND COALESCE(PEV_STATUS, '') != 'C'
@@ -956,7 +969,7 @@ SELECT
     COALESCE(PEV_VALOR_TOTAL, 0.0) || ';' ||
     COALESCE(PEV_STATUS, 'F')
 FROM TB_PEDIDO_VENDA
-WHERE PEV_EMPRESA = ${config.empresaId}
+WHERE (PEV_EMPRESA = ${config.empresaId} OR PEV_EMPRESA IS NULL)
   AND PEV_MESA IN ($listaIds)
   AND PEV_DT_LANCAMENTO >= '$dtSql'
   AND COALESCE(PEV_STATUS, '') != 'C'

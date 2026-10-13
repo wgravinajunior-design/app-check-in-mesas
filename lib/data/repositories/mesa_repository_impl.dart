@@ -149,10 +149,11 @@ class MesaRepositoryImpl implements MesaRepository {
 
           todosPedidos.addAll(pedidosUnicos);
 
-          // Filtra estritamente após o check-in desta mesa específica
+          // Filtra pedidos após o check-in desta mesa específica (com tolerância de 2 minutos para relógios dessincronizados)
+          final limiteCheckIn = dtEntrada.subtract(const Duration(minutes: 2));
           final filtradosCheckIn = pedidosUnicos
-              .where((p) => p.dataHoraLancamento.isAfter(dtEntrada) ||
-                  p.dataHoraLancamento.isAtSameMomentAs(dtEntrada))
+              .where((p) => p.dataHoraLancamento.isAfter(limiteCheckIn) ||
+                  p.dataHoraLancamento.isAtSameMomentAs(limiteCheckIn))
               .toList();
 
           mapaResumo[mesa.id] = ConsumoMesaResumo.processar(

@@ -43,7 +43,7 @@ class AtualizacaoInfo {
 class AppUpdateService {
   static const String repositorioOwner = 'wgravinajunior-design';
   static const String repositorioNome = 'app-check-in-mesas';
-  static const String versaoAtualApp = '1.0.14';
+  static const String versaoAtualApp = '1.0.15';
 
   static Future<AtualizacaoInfo> verificarAtualizacao() async {
     final url = Uri.parse(

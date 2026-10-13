@@ -199,6 +199,63 @@ void main() {
       );
       expect(mesa.numeroPessoas, equals(6));
     });
+
+    test('Parsing de datas do Firebird e ISQL com diferentes formatos', () {
+      final t1 = DateTime.tryParse('2026-10-13 13:30:00.0000');
+      final t2 = DateTime.tryParse('2026-10-13 13:30:00');
+      final t3 = DateTime.tryParse('2026-10-13T13:30:00.000');
+      expect(t1, isNotNull);
+      expect(t2, isNotNull);
+      expect(t3, isNotNull);
+      expect(t1!.hour, equals(13));
+      expect(t1.minute, equals(30));
+    });
+
+    test('ConsumoMesaResumo e Mesa devem exibir tempo do ultimo item quando ha pedido ou fallback', () {
+      final agora = DateTime.now();
+      final dezMinAtras = agora.subtract(const Duration(minutes: 10));
+
+      final resumo = ConsumoMesaResumo(
+        mesaId: 1,
+        codigoMesa: '01',
+        dataCheckIn: agora.subtract(const Duration(minutes: 30)),
+        ultimoPedido: PedidoResumo(
+          id: 100,
+          empresaId: 1,
+          mesaId: 1,
+          dataHoraLancamento: dezMinAtras,
+          valorTotal: 45.50,
+          status: 'F',
+        ),
+        minutosDesdeUltimoPedido: 10,
+        valorUltimoPedido: 45.50,
+        valorTotalPedidos: 45.50,
+        quantidadePedidos: 1,
+      );
+
+      final mesa = Mesa(
+        id: 1,
+        codigo: '01',
+        isOcupada: true,
+        consumoResumo: resumo,
+      );
+
+      expect(mesa.temConsumo, isTrue);
+      expect(mesa.minutosDesdeUltimoPedido, equals(10));
+      expect(mesa.valorUltimoPedido, equals(45.50));
+      expect(mesa.valorTotalConsumo, equals(45.50));
+    });
+
+    test('Tolerancia temporal de 2 minutos deve incluir pedidos lancados no instante do check-in', () {
+      final agora = DateTime.now();
+      final checkIn = agora;
+      final pedidoQuaseSimultaneo = agora.subtract(const Duration(seconds: 30));
+      final limite = checkIn.subtract(const Duration(minutes: 2));
+
+      final valido = pedidoQuaseSimultaneo.isAfter(limite) ||
+          pedidoQuaseSimultaneo.isAtSameMomentAs(limite);
+      expect(valido, isTrue);
+    });
   });
 }
 
