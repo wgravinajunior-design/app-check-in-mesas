@@ -66,9 +66,6 @@ class _MesaGridScreenState extends State<MesaGridScreen> {
   void _mostrarPopupMesasLiberadas(List<Mesa> liberadas) {
     if (!mounted) return;
 
-    // Retorno de som alto e vibração na tela
-    AudioAlertService.tocarSomMesaLiberada();
-
     showDialog(
       context: context,
       barrierDismissible: true,
