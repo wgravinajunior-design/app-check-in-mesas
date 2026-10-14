@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../core/services/audio_alert_service.dart';
+import '../../../core/services/lan_sync_service.dart';
 import '../../../domain/entities/app_config.dart';
 import '../../../domain/entities/consumo_mesa_resumo.dart';
 import '../../../domain/entities/ingresso.dart';
@@ -15,8 +16,11 @@ import 'mesa_state.dart';
 class MesaCubit extends Cubit<MesaState> {
   final MesaRepository mesaRepository;
   final IngressoRepository ingressoRepository;
+  final LanSyncService _lanSyncService;
 
   Timer? _timerTicker;
+  StreamSubscription? _lanSyncLiberadaSub;
+  StreamSubscription? _lanSyncOcupadaSub;
   AppConfig _config = const AppConfig();
   final Set<int> _mesasAlertadas = {};
   final Set<int> _mesasExcedidas = {};
@@ -43,8 +47,106 @@ class MesaCubit extends Cubit<MesaState> {
   MesaCubit({
     required this.mesaRepository,
     required this.ingressoRepository,
-  }) : super(MesaInitial()) {
+    LanSyncService? lanSyncService,
+  })  : _lanSyncService = lanSyncService ?? LanSyncService.instancia,
+        super(MesaInitial()) {
     _iniciarTimerCronometro();
+    _iniciarLanSync();
+  }
+
+  void _iniciarLanSync() {
+    _lanSyncService.iniciar();
+    _lanSyncLiberadaSub =
+        _lanSyncService.mesaLiberadaStream.listen(_tratarMesaLiberadaRemota);
+    _lanSyncOcupadaSub = _lanSyncService.eventoStream
+        .where((e) => e.tipo == 'MESA_OCUPADA')
+        .listen(_tratarMesaOcupadaRemota);
+  }
+
+  void _tratarMesaLiberadaRemota(LanSyncEvento evento) {
+    final estadoAtual = state;
+    if (estadoAtual is! MesaLoaded) return;
+
+    Mesa? mesaAlvo;
+    try {
+      mesaAlvo = estadoAtual.mesas.firstWhere(
+        (m) =>
+            (evento.mesaId != null && m.id == evento.mesaId) ||
+            m.codigo == evento.codigoMesa ||
+            m.nomeExibicao.toLowerCase() == evento.nomeExibicao.toLowerCase(),
+      );
+    } catch (_) {}
+
+    final mesaNotificacao = mesaAlvo != null
+        ? mesaAlvo.copyWith(
+            isOcupada: false,
+            clearIngressoAtual: true,
+            clearConsumoResumo: true,
+            tempoDecorrido: Duration.zero,
+            statusPermanencia: StatusPermanencia.livre,
+          )
+        : Mesa(
+            id: evento.mesaId ?? 0,
+            codigo: evento.codigoMesa,
+            descricao: evento.nomeExibicao,
+            isOcupada: false,
+            tempoDecorrido: Duration.zero,
+            statusPermanencia: StatusPermanencia.livre,
+          );
+
+    if (mesaAlvo != null) {
+      _mesasAlertadas.remove(mesaAlvo.id);
+      _mesasExcedidas.remove(mesaAlvo.id);
+      _mesasAnteriormenteOcupadas.remove(mesaAlvo.id);
+
+      final List<Mesa> novasMesas = estadoAtual.mesas.map<Mesa>((m) {
+        if (m.id == mesaAlvo!.id) {
+          return mesaNotificacao;
+        }
+        return m;
+      }).toList();
+
+      emit(MesaLoaded(
+        mesas: novasMesas,
+        ultimoTick: DateTime.now(),
+      ));
+    }
+
+    _notificarMesasLiberadas([mesaNotificacao]);
+  }
+
+  void _tratarMesaOcupadaRemota(LanSyncEvento evento) {
+    final estadoAtual = state;
+    if (estadoAtual is! MesaLoaded) return;
+
+    Mesa? mesaAlvo;
+    try {
+      mesaAlvo = estadoAtual.mesas.firstWhere(
+        (m) =>
+            (evento.mesaId != null && m.id == evento.mesaId) ||
+            m.codigo == evento.codigoMesa ||
+            m.nomeExibicao.toLowerCase() == evento.nomeExibicao.toLowerCase(),
+      );
+    } catch (_) {}
+
+    if (mesaAlvo != null && !mesaAlvo.isOcupada) {
+      final List<Mesa> novasMesas = estadoAtual.mesas.map<Mesa>((m) {
+        if (m.id == mesaAlvo!.id) {
+          return m.copyWith(
+            isOcupada: true,
+            tempoDecorrido: Duration.zero,
+            statusPermanencia: StatusPermanencia.normal,
+          );
+        }
+        return m;
+      }).toList();
+
+      _mesasAnteriormenteOcupadas.add(mesaAlvo.id);
+      emit(MesaLoaded(
+        mesas: novasMesas,
+        ultimoTick: DateTime.now(),
+      ));
+    }
   }
 
 
@@ -275,11 +377,11 @@ class MesaCubit extends Cubit<MesaState> {
     bool houveMudanca = false;
     _contadorTicks++;
 
-    // A cada 2 minutos (120 segundos), executa atualização automática completa em segundo plano
-    if (_contadorTicks % 120 == 0) {
+    // A cada 8 segundos executa sincronização automática com a retaguarda Firebird
+    if (_contadorTicks % 8 == 0) {
       carregarMesas(emSegundoPlano: true);
-    } else if (_contadorTicks % 15 == 0 && !_sincronizandoConsumo) {
-      // A cada 15 segundos sincroniza consumo incremental
+    } else if (_contadorTicks % 4 == 0 && !_sincronizandoConsumo) {
+      // A cada 4 segundos sincroniza consumo e pedidos incrementalmente
       atualizarConsumoMesas();
     }
 
@@ -380,6 +482,13 @@ class MesaCubit extends Cubit<MesaState> {
         isOcupada: true,
       );
 
+      // Notifica todos os outros aparelhos na rede local sobre a ocupação
+      _lanSyncService.broadcastMesaOcupada(
+        mesaId: mesa.id,
+        codigoMesa: mesa.codigo,
+        nomeExibicao: mesa.nomeExibicao,
+      );
+
       final List<Mesa> novasMesas = estadoAtual.mesas.map((m) {
         if (m.id == mesa.id) {
           return m.copyWith(
@@ -457,6 +566,13 @@ class MesaCubit extends Cubit<MesaState> {
       _mesasExcedidas.remove(mesa.id);
       _mesasAnteriormenteOcupadas.remove(mesa.id);
       _notificarMesasLiberadas([mesa]);
+
+      // Notifica instantaneamente todos os outros celulares e computadores na rede local
+      _lanSyncService.broadcastMesaLiberada(
+        mesaId: mesa.id,
+        codigoMesa: mesa.codigo,
+        nomeExibicao: mesa.nomeExibicao,
+      );
 
       final List<Mesa> novasMesas = estadoAtual.mesas.map((m) {
         if (m.id == mesa.id) {
@@ -564,6 +680,8 @@ class MesaCubit extends Cubit<MesaState> {
   @override
   Future<void> close() {
     _timerTicker?.cancel();
+    _lanSyncLiberadaSub?.cancel();
+    _lanSyncOcupadaSub?.cancel();
     _mesasLiberadasController.close();
     return super.close();
   }

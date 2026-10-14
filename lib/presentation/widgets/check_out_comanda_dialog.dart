@@ -15,13 +15,15 @@ class CheckOutComandaDialog extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final bool isDark = Theme.of(context).brightness == Brightness.dark;
+
     return AlertDialog(
       title: Row(
         children: [
           Container(
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: const Color(0xFFFEF2F2),
+              color: isDark ? Colors.red.withValues(alpha: 0.2) : const Color(0xFFFEF2F2),
               borderRadius: BorderRadius.circular(10),
             ),
             child: const Icon(Icons.logout_rounded, color: Colors.red),
@@ -33,11 +35,18 @@ class CheckOutComandaDialog extends StatelessWidget {
               children: [
                 Text(
                   'Check-out: ${comanda.nomeExibicao}',
-                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 18,
+                    color: isDark ? const Color(0xFFF8FAFC) : null,
+                  ),
                 ),
-                const Text(
+                Text(
                   'Encerrar atendimento e registrar permanência',
-                  style: TextStyle(fontSize: 12, color: Colors.blueGrey),
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: isDark ? const Color(0xFF94A3B8) : Colors.blueGrey,
+                  ),
                 ),
               ],
             ),
@@ -47,9 +56,11 @@ class CheckOutComandaDialog extends StatelessWidget {
       content: Container(
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          color: const Color(0xFFF8FAFC),
+          color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
           borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: const Color(0xFFE2E8F0)),
+          border: Border.all(
+            color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
+          ),
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -58,10 +69,20 @@ class CheckOutComandaDialog extends StatelessWidget {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Text('Entrada:', style: TextStyle(color: Colors.blueGrey, fontSize: 13)),
+                Text(
+                  'Entrada:',
+                  style: TextStyle(
+                    color: isDark ? const Color(0xFF94A3B8) : Colors.blueGrey,
+                    fontSize: 13,
+                  ),
+                ),
                 Text(
                   TimeFormatter.formatDateTime(comanda.horaEntrada),
-                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 13,
+                    color: isDark ? const Color(0xFFF1F5F9) : const Color(0xFF1E293B),
+                  ),
                 ),
               ],
             ),
@@ -69,7 +90,13 @@ class CheckOutComandaDialog extends StatelessWidget {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Text('Tempo Total Ativo:', style: TextStyle(color: Colors.blueGrey, fontSize: 13)),
+                Text(
+                  'Tempo Total Ativo:',
+                  style: TextStyle(
+                    color: isDark ? const Color(0xFF94A3B8) : Colors.blueGrey,
+                    fontSize: 13,
+                  ),
+                ),
                 Text(
                   TimeFormatter.formatDuration(comanda.tempoDecorrido),
                   style: TextStyle(
@@ -82,10 +109,14 @@ class CheckOutComandaDialog extends StatelessWidget {
             ),
             if (comanda.ingressoAtual?.observacao != null &&
                 comanda.ingressoAtual!.observacao!.isNotEmpty) ...[
-              const Divider(height: 14),
+              Divider(height: 14, color: isDark ? const Color(0xFF334155) : null),
               Text(
                 'Obs: ${comanda.ingressoAtual!.observacao!}',
-                style: const TextStyle(fontSize: 11, fontStyle: FontStyle.italic, color: Colors.black87),
+                style: TextStyle(
+                  fontSize: 11,
+                  fontStyle: FontStyle.italic,
+                  color: isDark ? const Color(0xFFCBD5E1) : Colors.black87,
+                ),
               ),
             ],
           ],
@@ -94,7 +125,7 @@ class CheckOutComandaDialog extends StatelessWidget {
       actions: [
         TextButton(
           onPressed: () => Navigator.of(context).pop(),
-          child: const Text('Cancelar'),
+          child: Text('Cancelar', style: TextStyle(color: isDark ? const Color(0xFF94A3B8) : null)),
         ),
         ElevatedButton.icon(
           style: ElevatedButton.styleFrom(

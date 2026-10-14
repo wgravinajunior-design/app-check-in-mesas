@@ -19,6 +19,12 @@ class CheckOutDialog extends StatelessWidget {
     final DateTime entrada = mesa.horaEntrada ?? agora;
     final Duration totalPermanencia = agora.difference(entrada);
     final status = mesa.statusPermanencia;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    final corCardBg = isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC);
+    final corCardBorder = isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0);
+    final corConsumoBg = isDark ? const Color(0xFF0F172A) : const Color(0xFFF1F5F9);
+    final corConsumoBorder = isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1);
 
     return AlertDialog(
       title: Row(
@@ -26,7 +32,7 @@ class CheckOutDialog extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: status.corFundoClara,
+              color: isDark ? status.corPrimaria.withValues(alpha: 0.2) : status.corFundoClara,
               borderRadius: BorderRadius.circular(10),
             ),
             child: Icon(Icons.logout_rounded, color: status.corPrimaria),
@@ -47,9 +53,9 @@ class CheckOutDialog extends StatelessWidget {
             Container(
               padding: const EdgeInsets.all(14),
               decoration: BoxDecoration(
-                color: const Color(0xFFF8FAFC),
+                color: corCardBg,
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: const Color(0xFFE2E8F0)),
+                border: Border.all(color: corCardBorder),
               ),
               child: Column(
                 children: [
@@ -57,26 +63,30 @@ class CheckOutDialog extends StatelessWidget {
                     label: 'Hora de Entrada:',
                     valor: TimeFormatter.formatDateTime(mesa.horaEntrada),
                     icone: Icons.login_rounded,
+                    isDark: isDark,
                   ),
-                  const Divider(height: 14),
+                  Divider(height: 14, color: isDark ? const Color(0xFF1E293B) : null),
                   _buildLinhaResumo(
                     label: 'Quantidade de Pessoas:',
                     valor: '${mesa.numeroPessoas} ${mesa.numeroPessoas == 1 ? "pessoa" : "pessoas"}',
                     icone: Icons.people_alt_rounded,
+                    isDark: isDark,
                   ),
-                  const Divider(height: 14),
+                  Divider(height: 14, color: isDark ? const Color(0xFF1E293B) : null),
                   _buildLinhaResumo(
                     label: 'Hora de Saída:',
                     valor: TimeFormatter.formatDateTime(agora),
                     icone: Icons.logout_rounded,
+                    isDark: isDark,
                   ),
-                  const Divider(height: 14),
+                  Divider(height: 14, color: isDark ? const Color(0xFF1E293B) : null),
                   _buildLinhaResumo(
                     label: 'Tempo Total:',
                     valor: TimeFormatter.formatCronometro(totalPermanencia),
                     icone: Icons.timelapse_rounded,
                     isDestaque: true,
                     corDestaque: status.corPrimaria,
+                    isDark: isDark,
                   ),
                   const SizedBox(height: 6),
                   Row(
@@ -101,23 +111,23 @@ class CheckOutDialog extends StatelessWidget {
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: const Color(0xFFF1F5F9),
+                color: corConsumoBg,
                 borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: const Color(0xFFCBD5E1)),
+                border: Border.all(color: corConsumoBorder),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Row(
-                    children: const [
-                      Icon(Icons.restaurant_menu_rounded, size: 16, color: Color(0xFFD97706)),
-                      SizedBox(width: 6),
+                    children: [
+                      const Icon(Icons.restaurant_menu_rounded, size: 16, color: Color(0xFFD97706)),
+                      const SizedBox(width: 6),
                       Text(
                         'Consumo da Mesa (Modelo Pré-pago):',
                         style: TextStyle(
                           fontSize: 12,
                           fontWeight: FontWeight.bold,
-                          color: Color(0xFF1E293B),
+                          color: isDark ? const Color(0xFFF1F5F9) : const Color(0xFF1E293B),
                         ),
                       ),
                     ],
@@ -127,30 +137,30 @@ class CheckOutDialog extends StatelessWidget {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        const Text('Total de Pedidos Realizados:', style: TextStyle(fontSize: 11, color: Color(0xFF475569))),
-                        Text('${mesa.quantidadePedidos} pedido(s)', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                        Text('Total de Pedidos Realizados:', style: TextStyle(fontSize: 11, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF475569))),
+                        Text('${mesa.quantidadePedidos} pedido(s)', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: isDark ? const Color(0xFFF1F5F9) : null)),
                       ],
                     ),
                     const SizedBox(height: 4),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Text('Último Pedido (há ${mesa.minutosDesdeUltimoPedido ?? 0} min):', style: const TextStyle(fontSize: 11, color: Color(0xFF475569))),
-                        Text('R\$ ${mesa.valorUltimoPedido.toStringAsFixed(2)}', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF92400E))),
+                        Text('Último Pedido (há ${mesa.minutosDesdeUltimoPedido ?? 0} min):', style: TextStyle(fontSize: 11, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF475569))),
+                        Text('R\$ ${mesa.valorUltimoPedido.toStringAsFixed(2)}', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: isDark ? const Color(0xFFFBBF24) : const Color(0xFF92400E))),
                       ],
                     ),
-                    const Divider(height: 10),
+                    Divider(height: 10, color: isDark ? const Color(0xFF1E293B) : null),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        const Text('Somatório Total Consumido:', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF1E293B))),
-                        Text('R\$ ${mesa.valorTotalConsumo.toStringAsFixed(2)}', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Color(0xFF15803D))),
+                        Text('Somatório Total Consumido:', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: isDark ? const Color(0xFFF1F5F9) : const Color(0xFF1E293B))),
+                        Text('R\$ ${mesa.valorTotalConsumo.toStringAsFixed(2)}', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: isDark ? const Color(0xFF4ADE80) : const Color(0xFF15803D))),
                       ],
                     ),
                   ] else ...[
-                    const Text(
+                    Text(
                       'Nenhum pedido lançado para esta mesa após o momento do check-in.',
-                      style: TextStyle(fontSize: 11, color: Color(0xFF64748B), fontStyle: FontStyle.italic),
+                      style: TextStyle(fontSize: 11, color: isDark ? const Color(0xFF64748B) : const Color(0xFF64748B), fontStyle: FontStyle.italic),
                     ),
                   ],
                 ],
@@ -162,9 +172,9 @@ class CheckOutDialog extends StatelessWidget {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               decoration: BoxDecoration(
-                color: status.corFundoClara,
+                color: isDark ? status.corPrimaria.withValues(alpha: 0.18) : status.corFundoClara,
                 borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: status.corPrimaria.withValues(alpha: 0.4)),
+                border: Border.all(color: status.corPrimaria.withValues(alpha: isDark ? 0.5 : 0.4)),
               ),
               child: Row(
                 children: [
@@ -183,23 +193,17 @@ class CheckOutDialog extends StatelessWidget {
                 ],
               ),
             ),
-            const SizedBox(height: 12),
-
-            Text(
-              'A mesa será liberada e o registro na TB_INGRESSO receberá a data/hora final e duração total para auditoria.',
-              style: TextStyle(fontSize: 11, color: Colors.blueGrey.shade600),
-            ),
           ],
         ),
       ),
       actions: [
         TextButton(
           onPressed: () => Navigator.of(context).pop(),
-          child: const Text('Cancelar'),
+          child: Text('Cancelar', style: TextStyle(color: isDark ? const Color(0xFF94A3B8) : null)),
         ),
         ElevatedButton(
           style: ElevatedButton.styleFrom(
-            backgroundColor: const Color(0xFF0F172A),
+            backgroundColor: isDark ? const Color(0xFF2563EB) : const Color(0xFF0F172A),
             foregroundColor: Colors.white,
           ),
           onPressed: () {
@@ -218,17 +222,18 @@ class CheckOutDialog extends StatelessWidget {
     required IconData icone,
     bool isDestaque = false,
     Color? corDestaque,
+    required bool isDark,
   }) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
         Row(
           children: [
-            Icon(icone, size: 16, color: const Color(0xFF64748B)),
+            Icon(icone, size: 16, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
             const SizedBox(width: 6),
             Text(
               label,
-              style: const TextStyle(color: Color(0xFF475569), fontSize: 13),
+              style: TextStyle(color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF475569), fontSize: 13),
             ),
           ],
         ),
@@ -236,7 +241,9 @@ class CheckOutDialog extends StatelessWidget {
           valor,
           style: TextStyle(
             fontWeight: isDestaque ? FontWeight.bold : FontWeight.w600,
-            color: isDestaque ? (corDestaque ?? const Color(0xFF0F172A)) : const Color(0xFF1E293B),
+            color: isDestaque
+                ? (corDestaque ?? (isDark ? Colors.white : const Color(0xFF0F172A)))
+                : (isDark ? const Color(0xFFF1F5F9) : const Color(0xFF1E293B)),
             fontSize: isDestaque ? 15 : 13,
             fontFamily: isDestaque ? 'monospace' : null,
           ),

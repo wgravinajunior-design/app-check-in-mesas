@@ -2,7 +2,6 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../core/services/app_update_service.dart';
-import '../../core/services/audio_alert_service.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/utils/barcode_parser.dart';
 import '../../core/utils/time_formatter.dart';
@@ -43,6 +42,8 @@ class _MesaGridScreenState extends State<MesaGridScreen> {
   final TextEditingController _buscaController = TextEditingController();
   String _termoBusca = '';
   StreamSubscription<List<Mesa>>? _mesasLiberadasSub;
+  DateTime? _ultimoPopupLiberadas;
+  String? _ultimasMesasPopup;
 
   @override
   void initState() {
@@ -64,13 +65,30 @@ class _MesaGridScreenState extends State<MesaGridScreen> {
   }
 
   void _mostrarPopupMesasLiberadas(List<Mesa> liberadas) {
-    if (!mounted) return;
+    if (!mounted || liberadas.isEmpty) return;
+
+    final chaveAtual = liberadas.map((m) => '${m.id}_${m.codigo}').join(',');
+    final agora = DateTime.now();
+    if (_ultimasMesasPopup == chaveAtual &&
+        _ultimoPopupLiberadas != null &&
+        agora.difference(_ultimoPopupLiberadas!).inSeconds < 5) {
+      return;
+    }
+    _ultimasMesasPopup = chaveAtual;
+    _ultimoPopupLiberadas = agora;
+
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     showDialog(
       context: context,
+      useRootNavigator: true,
       barrierDismissible: true,
       builder: (dialogCtx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        backgroundColor: isDark ? const Color(0xFF1E293B) : Colors.white,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+          side: isDark ? const BorderSide(color: Color(0xFF334155)) : BorderSide.none,
+        ),
         titlePadding: const EdgeInsets.fromLTRB(20, 20, 20, 10),
         contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
         actionsPadding: const EdgeInsets.fromLTRB(20, 10, 20, 16),
@@ -79,12 +97,12 @@ class _MesaGridScreenState extends State<MesaGridScreen> {
             Container(
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: const Color(0xFFDCFCE7),
+                color: isDark ? const Color(0xFF14532D).withOpacity(0.5) : const Color(0xFFDCFCE7),
                 borderRadius: BorderRadius.circular(10),
               ),
-              child: const Icon(
+              child: Icon(
                 Icons.check_circle_rounded,
-                color: Color(0xFF16A34A),
+                color: isDark ? const Color(0xFF4ADE80) : const Color(0xFF16A34A),
                 size: 26,
               ),
             ),
@@ -92,10 +110,10 @@ class _MesaGridScreenState extends State<MesaGridScreen> {
             Expanded(
               child: Text(
                 liberadas.length == 1 ? 'Mesa Liberada!' : 'Mesas Liberadas!',
-                style: const TextStyle(
+                style: TextStyle(
                   fontWeight: FontWeight.bold,
                   fontSize: 18,
-                  color: Color(0xFF0F172A),
+                  color: isDark ? const Color(0xFFF8FAFC) : const Color(0xFF0F172A),
                 ),
               ),
             ),
@@ -109,7 +127,10 @@ class _MesaGridScreenState extends State<MesaGridScreen> {
               liberadas.length == 1
                   ? 'A mesa abaixo saiu do status ocupada e agora está livre:'
                   : 'As mesas abaixo saíram do status ocupada e agora estão livres:',
-              style: const TextStyle(fontSize: 13, color: Color(0xFF475569)),
+              style: TextStyle(
+                fontSize: 13,
+                color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF475569),
+              ),
             ),
             const SizedBox(height: 14),
             Wrap(
@@ -119,21 +140,28 @@ class _MesaGridScreenState extends State<MesaGridScreen> {
                 return Container(
                   padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFE8F5E9),
+                    color: isDark ? const Color(0xFF14532D).withOpacity(0.3) : const Color(0xFFE8F5E9),
                     borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: const Color(0xFF81C784), width: 1.2),
+                    border: Border.all(
+                      color: isDark ? const Color(0xFF22C55E) : const Color(0xFF81C784),
+                      width: 1.2,
+                    ),
                   ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Icon(Icons.table_restaurant_rounded, size: 18, color: Color(0xFF2E7D32)),
+                      Icon(
+                        Icons.table_restaurant_rounded,
+                        size: 18,
+                        color: isDark ? const Color(0xFF4ADE80) : const Color(0xFF2E7D32),
+                      ),
                       const SizedBox(width: 6),
                       Text(
                         m.nomeExibicao,
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontWeight: FontWeight.bold,
                           fontSize: 15,
-                          color: Color(0xFF1B5E20),
+                          color: isDark ? const Color(0xFF86EFAC) : const Color(0xFF1B5E20),
                         ),
                       ),
                     ],
@@ -364,15 +392,6 @@ class _MesaGridScreenState extends State<MesaGridScreen> {
                   },
                 ),
 
-                // Escanear Câmera (Leitor Rápido de Mesa)
-                IconButton(
-                  visualDensity: VisualDensity.compact,
-                  padding: const EdgeInsets.symmetric(horizontal: 2),
-                  constraints: const BoxConstraints(minWidth: 34, minHeight: 34),
-                  tooltip: 'Escanear com a Câmera',
-                  icon: const Icon(Icons.qr_code_scanner_rounded, size: 20, color: Colors.amber),
-                  onPressed: _escanearMesaComCamera,
-                ),
 
                 // Métricas do Salão
                 IconButton(
@@ -502,7 +521,13 @@ class _MesaGridScreenState extends State<MesaGridScreen> {
               // Barra de Busca Rápida de Mesas
               _buildBarraBusca(),
 
-              const Divider(height: 1, thickness: 1),
+              Divider(
+                height: 1,
+                thickness: 1,
+                color: Theme.of(context).brightness == Brightness.dark
+                    ? const Color(0xFF334155)
+                    : const Color(0xFFE2E8F0),
+              ),
               Expanded(
                 child: mesasFiltradas.isEmpty
                     ? Center(
@@ -572,6 +597,8 @@ class _MesaGridScreenState extends State<MesaGridScreen> {
   }
 
   Widget _buildBarraBusca() {
+    final bool isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       child: TextField(
@@ -593,24 +620,38 @@ class _MesaGridScreenState extends State<MesaGridScreen> {
                   },
                 ),
               IconButton(
-                icon: const Icon(Icons.qr_code_scanner_rounded, color: Color(0xFF0284C7)),
+                icon: Icon(
+                  Icons.qr_code_scanner_rounded,
+                  color: isDark ? const Color(0xFF38BDF8) : const Color(0xFF0284C7),
+                ),
                 tooltip: 'Escanear mesa com a câmera',
                 onPressed: _escanearMesaComCamera,
               ),
             ],
           ),
           filled: true,
-          fillColor: Theme.of(context).cardColor,
+          fillColor: isDark ? const Color(0xFF0F172A) : Theme.of(context).cardColor,
           isDense: true,
           contentPadding:
               const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(10),
-            borderSide: BorderSide(color: Colors.grey.shade300),
+            borderSide: BorderSide(
+              color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1),
+            ),
           ),
           enabledBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(10),
-            borderSide: BorderSide(color: Colors.grey.shade300),
+            borderSide: BorderSide(
+              color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1),
+            ),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(10),
+            borderSide: BorderSide(
+              color: isDark ? const Color(0xFF38BDF8) : const Color(0xFF0284C7),
+              width: 1.5,
+            ),
           ),
         ),
         onChanged: (val) {
@@ -807,10 +848,9 @@ class _MesaGridScreenState extends State<MesaGridScreen> {
         onConfirmar: () {
           context.read<MesaCubit>().realizarCheckOut(mesa: mesa);
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                  'Check-out efetuado! ${mesa.nomeExibicao} liberada e gravada na TB_INGRESSO.'),
-              backgroundColor: const Color(0xFF0F172A),
+            const SnackBar(
+              content: Text('Check Out efetuado!'),
+              backgroundColor: Color(0xFF0F172A),
               behavior: SnackBarBehavior.floating,
             ),
           );

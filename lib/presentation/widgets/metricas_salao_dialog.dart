@@ -43,6 +43,8 @@ class MetricasSalaoDialog extends StatelessWidget {
           .reduce((a, b) => a.tempoDecorrido > b.tempoDecorrido ? a : b);
     }
 
+    final bool isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Dialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       insetPadding: EdgeInsets.symmetric(
@@ -63,27 +65,36 @@ class MetricasSalaoDialog extends StatelessWidget {
                   Container(
                     padding: const EdgeInsets.all(10),
                     decoration: BoxDecoration(
-                      color: const Color(0xFFEFF6FF),
+                      color: isDark
+                          ? const Color(0xFF1D4ED8).withValues(alpha: 0.25)
+                          : const Color(0xFFEFF6FF),
                       borderRadius: BorderRadius.circular(10),
                     ),
                     child: const Icon(
                       Icons.analytics_rounded,
-                      color: Color(0xFF1D4ED8),
+                      color: Color(0xFF38BDF8),
                       size: 24,
                     ),
                   ),
                   const SizedBox(width: 12),
-                  const Expanded(
+                  Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
                           'Métricas e Giro do Salão',
-                          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: isDark ? const Color(0xFFF8FAFC) : null,
+                          ),
                         ),
                         Text(
                           'Visão gerencial em tempo real',
-                          style: TextStyle(fontSize: 12, color: Color(0xFF64748B)),
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                          ),
                         ),
                       ],
                     ),
@@ -105,9 +116,10 @@ class MetricasSalaoDialog extends StatelessWidget {
                     titulo: 'Ocupação do Salão',
                     valor: '${taxaOcupacao.toStringAsFixed(1)}%',
                     subtitulo: '$ocupadas de $totalMesas mesas',
-                    cor: const Color(0xFF0D47A1),
+                    cor: isDark ? const Color(0xFF38BDF8) : const Color(0xFF0D47A1),
                     icone: Icons.pie_chart_rounded,
                     largura: isTablet ? 245 : 150,
+                    isDark: isDark,
                   ),
                   _buildStatCard(
                     titulo: 'Tempo Médio Ativo',
@@ -116,6 +128,7 @@ class MetricasSalaoDialog extends StatelessWidget {
                     cor: const Color(0xFF0284C7),
                     icone: Icons.access_time_filled_rounded,
                     largura: isTablet ? 245 : 150,
+                    isDark: isDark,
                   ),
                   _buildStatCard(
                     titulo: 'Mesas Livres',
@@ -124,6 +137,7 @@ class MetricasSalaoDialog extends StatelessWidget {
                     cor: AppTheme.corMesaLivre,
                     icone: Icons.check_circle_rounded,
                     largura: isTablet ? 245 : 150,
+                    isDark: isDark,
                   ),
                   _buildStatCard(
                     titulo: 'Alerta / Excedidas',
@@ -132,6 +146,7 @@ class MetricasSalaoDialog extends StatelessWidget {
                     cor: excedidas > 0 ? AppTheme.corMesaExcedida : AppTheme.corMesaAlerta,
                     icone: Icons.warning_rounded,
                     largura: isTablet ? 245 : 150,
+                    isDark: isDark,
                   ),
                 ],
               ),
@@ -143,9 +158,15 @@ class MetricasSalaoDialog extends StatelessWidget {
                 Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFFFFBEB),
+                    color: isDark
+                        ? const Color(0xFFD97706).withValues(alpha: 0.15)
+                        : const Color(0xFFFFFBEB),
                     borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: const Color(0xFFFDE68A)),
+                    border: Border.all(
+                      color: isDark
+                          ? const Color(0xFFD97706).withValues(alpha: 0.45)
+                          : const Color(0xFFFDE68A),
+                    ),
                   ),
                   child: Row(
                     children: [
@@ -157,11 +178,18 @@ class MetricasSalaoDialog extends StatelessWidget {
                           children: [
                             Text(
                               'Maior Permanência Atual: ${mesaMaisTempo.nomeExibicao}',
-                              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 13,
+                                color: isDark ? const Color(0xFFF1F5F9) : null,
+                              ),
                             ),
                             Text(
                               'Tempo decorrido: ${TimeFormatter.formatDuration(mesaMaisTempo.tempoDecorrido)}',
-                              style: const TextStyle(fontSize: 12, color: Color(0xFF92400E)),
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: isDark ? const Color(0xFFFCD34D) : const Color(0xFF92400E),
+                              ),
                             ),
                           ],
                         ),
@@ -176,7 +204,7 @@ class MetricasSalaoDialog extends StatelessWidget {
                 alignment: Alignment.centerRight,
                 child: ElevatedButton(
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF0D47A1),
+                    backgroundColor: isDark ? const Color(0xFF2563EB) : const Color(0xFF0D47A1),
                     foregroundColor: Colors.white,
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                   ),
@@ -198,14 +226,15 @@ class MetricasSalaoDialog extends StatelessWidget {
     required Color cor,
     required IconData icone,
     required double largura,
+    required bool isDark,
   }) {
     return Container(
       width: largura,
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: cor.withValues(alpha: 0.08),
+        color: isDark ? cor.withValues(alpha: 0.14) : cor.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: cor.withValues(alpha: 0.2)),
+        border: Border.all(color: cor.withValues(alpha: isDark ? 0.35 : 0.2)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -220,7 +249,7 @@ class MetricasSalaoDialog extends StatelessWidget {
                   style: TextStyle(
                     fontSize: 11,
                     fontWeight: FontWeight.w600,
-                    color: Colors.grey.shade700,
+                    color: isDark ? const Color(0xFFCBD5E1) : Colors.grey.shade700,
                   ),
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -240,7 +269,7 @@ class MetricasSalaoDialog extends StatelessWidget {
             subtitulo,
             style: TextStyle(
               fontSize: 11,
-              color: Colors.grey.shade600,
+              color: isDark ? const Color(0xFF94A3B8) : Colors.grey.shade600,
             ),
             overflow: TextOverflow.ellipsis,
           ),

@@ -286,6 +286,8 @@ class _DownloadUpdateDialogState extends State<DownloadUpdateDialog> {
     final porcentagem = (_progresso * 100).toInt();
     final bool isWindows = !kIsWeb && Platform.isWindows;
 
+    final bool isDark = Theme.of(context).brightness == Brightness.dark;
+
     return PopScope(
       canPop: !_emDownload,
       child: Dialog(
@@ -301,8 +303,8 @@ class _DownloadUpdateDialogState extends State<DownloadUpdateDialog> {
                 height: 60,
                 decoration: BoxDecoration(
                   color: _erro
-                      ? Colors.red.shade50
-                      : const Color(0xFFE0F2FE),
+                      ? (isDark ? Colors.red.withValues(alpha: 0.2) : Colors.red.shade50)
+                      : (isDark ? const Color(0xFF0284C7).withValues(alpha: 0.25) : const Color(0xFFE0F2FE)),
                   shape: BoxShape.circle,
                 ),
                 child: Icon(
@@ -313,7 +315,7 @@ class _DownloadUpdateDialogState extends State<DownloadUpdateDialog> {
                           : Icons.download_rounded),
                   color: _erro
                       ? Colors.red
-                      : const Color(0xFF0284C7),
+                      : (isDark ? const Color(0xFF38BDF8) : const Color(0xFF0284C7)),
                   size: 32,
                 ),
               ),
@@ -325,9 +327,10 @@ class _DownloadUpdateDialogState extends State<DownloadUpdateDialog> {
                     : (_progresso >= 1.0
                         ? 'Atualização Pronta!'
                         : 'Atualizando CheckMesa'),
-                style: const TextStyle(
+                style: TextStyle(
                   fontWeight: FontWeight.bold,
                   fontSize: 18,
+                  color: isDark ? const Color(0xFFF8FAFC) : null,
                 ),
                 textAlign: TextAlign.center,
               ),
@@ -336,7 +339,7 @@ class _DownloadUpdateDialogState extends State<DownloadUpdateDialog> {
               Text(
                 'Versão v${widget.info.versaoRemota}',
                 style: TextStyle(
-                  color: Colors.grey.shade600,
+                  color: isDark ? const Color(0xFF94A3B8) : Colors.grey.shade600,
                   fontSize: 13,
                   fontWeight: FontWeight.w600,
                 ),
@@ -350,7 +353,7 @@ class _DownloadUpdateDialogState extends State<DownloadUpdateDialog> {
                   child: LinearProgressIndicator(
                     value: _totalBytes > 0 ? _progresso : null,
                     minHeight: 10,
-                    backgroundColor: Colors.grey.shade200,
+                    backgroundColor: isDark ? const Color(0xFF334155) : Colors.grey.shade200,
                     valueColor: const AlwaysStoppedAnimation<Color>(
                       AppTheme.corMesaNormal,
                     ),
@@ -376,7 +379,7 @@ class _DownloadUpdateDialogState extends State<DownloadUpdateDialog> {
                           : '$mbRecebidos MB transferidos',
                       style: TextStyle(
                         fontSize: 12,
-                        color: Colors.grey.shade600,
+                        color: isDark ? const Color(0xFF94A3B8) : Colors.grey.shade600,
                       ),
                     ),
                   ],
@@ -387,14 +390,15 @@ class _DownloadUpdateDialogState extends State<DownloadUpdateDialog> {
                   width: double.infinity,
                   padding: const EdgeInsets.all(10),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFF1F5F9),
+                    color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF1F5F9),
                     borderRadius: BorderRadius.circular(8),
+                    border: isDark ? Border.all(color: const Color(0xFF334155)) : null,
                   ),
                   child: Text(
                     _statusTexto,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 12,
-                      color: Color(0xFF334155),
+                      color: isDark ? const Color(0xFFCBD5E1) : const Color(0xFF334155),
                       height: 1.3,
                     ),
                     textAlign: TextAlign.center,
@@ -404,15 +408,15 @@ class _DownloadUpdateDialogState extends State<DownloadUpdateDialog> {
                 Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: Colors.red.shade50,
+                    color: isDark ? Colors.red.withValues(alpha: 0.18) : Colors.red.shade50,
                     borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: Colors.red.shade200),
+                    border: Border.all(color: isDark ? Colors.red.withValues(alpha: 0.4) : Colors.red.shade200),
                   ),
                   child: Text(
                     _mensagemErro ?? 'Ocorreu um erro inesperado.',
                     style: TextStyle(
                       fontSize: 12,
-                      color: Colors.red.shade900,
+                      color: isDark ? const Color(0xFFFCA5A5) : Colors.red.shade900,
                     ),
                     textAlign: TextAlign.center,
                   ),
@@ -430,7 +434,7 @@ class _DownloadUpdateDialogState extends State<DownloadUpdateDialog> {
                   if (_erro) ...[
                     TextButton(
                       onPressed: () => Navigator.of(context).pop(),
-                      child: const Text('Fechar'),
+                      child: Text('Fechar', style: TextStyle(color: isDark ? const Color(0xFF94A3B8) : null)),
                     ),
                     ElevatedButton.icon(
                       onPressed: _abrirNavegadorFallback,
@@ -444,7 +448,7 @@ class _DownloadUpdateDialogState extends State<DownloadUpdateDialog> {
                         _client?.close();
                         Navigator.of(context).pop();
                       },
-                      child: const Text('Cancelar'),
+                      child: Text('Cancelar', style: TextStyle(color: isDark ? const Color(0xFF94A3B8) : null)),
                     ),
                   ] else ...[
                     // Download concluído com sucesso

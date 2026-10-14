@@ -147,6 +147,8 @@ class _HistoricoIngressosScreenState extends State<HistoricoIngressosScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final bool isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Auditoria - TB_INGRESSO'),
@@ -171,11 +173,11 @@ class _HistoricoIngressosScreenState extends State<HistoricoIngressosScreen> {
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(Icons.history_toggle_off_rounded, size: 64, color: Colors.grey.shade400),
+                      Icon(Icons.history_toggle_off_rounded, size: 64, color: isDark ? const Color(0xFF475569) : Colors.grey.shade400),
                       const SizedBox(height: 16),
                       Text(
                         'Nenhum registro de permanência em TB_INGRESSO.',
-                        style: TextStyle(color: Colors.grey.shade600, fontSize: 16),
+                        style: TextStyle(color: isDark ? const Color(0xFF94A3B8) : Colors.grey.shade600, fontSize: 16),
                       ),
                     ],
                   ),
@@ -189,10 +191,10 @@ class _HistoricoIngressosScreenState extends State<HistoricoIngressosScreen> {
                     final bool isFinalizado = item.status == 'F';
 
                     return Card(
-                      elevation: 1,
+                      elevation: isDark ? 0 : 1,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
-                        side: BorderSide(color: Colors.grey.shade300),
+                        side: BorderSide(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
                       ),
                       child: Padding(
                         padding: const EdgeInsets.all(14),
@@ -207,14 +209,16 @@ class _HistoricoIngressosScreenState extends State<HistoricoIngressosScreen> {
                                     Container(
                                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                                       decoration: BoxDecoration(
-                                        color: const Color(0xFF0D47A1).withValues(alpha: 0.1),
+                                        color: isDark
+                                            ? const Color(0xFF0284C7).withValues(alpha: 0.25)
+                                            : const Color(0xFF0D47A1).withValues(alpha: 0.1),
                                         borderRadius: BorderRadius.circular(6),
                                       ),
                                       child: Text(
                                         'Mesa ${item.codigoMesa}',
-                                        style: const TextStyle(
+                                        style: TextStyle(
                                           fontWeight: FontWeight.bold,
-                                          color: Color(0xFF0D47A1),
+                                          color: isDark ? const Color(0xFF38BDF8) : const Color(0xFF0D47A1),
                                         ),
                                       ),
                                     ),
@@ -222,7 +226,7 @@ class _HistoricoIngressosScreenState extends State<HistoricoIngressosScreen> {
                                     Text(
                                       'ID: #${item.id}',
                                       style: TextStyle(
-                                        color: Colors.grey.shade600,
+                                        color: isDark ? const Color(0xFF94A3B8) : Colors.grey.shade600,
                                         fontSize: 12,
                                         fontWeight: FontWeight.w500,
                                       ),
@@ -240,7 +244,7 @@ class _HistoricoIngressosScreenState extends State<HistoricoIngressosScreen> {
                                   child: Text(
                                     isFinalizado ? 'FINALIZADO (F)' : 'EM ATENDIMENTO (A)',
                                     style: TextStyle(
-                                      color: isFinalizado ? AppTheme.corMesaLivre : AppTheme.corMesaNormal,
+                                      color: isFinalizado ? (isDark ? const Color(0xFF94A3B8) : AppTheme.corMesaLivre) : AppTheme.corMesaNormal,
                                       fontSize: 11,
                                       fontWeight: FontWeight.bold,
                                     ),
@@ -248,21 +252,25 @@ class _HistoricoIngressosScreenState extends State<HistoricoIngressosScreen> {
                                 ),
                               ],
                             ),
-                            const Divider(height: 16),
+                            Divider(height: 16, color: isDark ? const Color(0xFF334155) : null),
                             Row(
                               children: [
                                 Expanded(
                                   child: Column(
                                     crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
-                                      const Text(
+                                      Text(
                                         'Entrada (Check-in)',
-                                        style: TextStyle(fontSize: 11, color: Color(0xFF64748B)),
+                                        style: TextStyle(fontSize: 11, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
                                       ),
                                       const SizedBox(height: 2),
                                       Text(
                                         TimeFormatter.formatDateTime(item.dtEntrada),
-                                        style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.w600,
+                                          fontSize: 13,
+                                          color: isDark ? const Color(0xFFF1F5F9) : null,
+                                        ),
                                       ),
                                     ],
                                   ),
@@ -271,9 +279,9 @@ class _HistoricoIngressosScreenState extends State<HistoricoIngressosScreen> {
                                   child: Column(
                                     crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
-                                      const Text(
+                                      Text(
                                         'Saída (Check-out)',
-                                        style: TextStyle(fontSize: 11, color: Color(0xFF64748B)),
+                                        style: TextStyle(fontSize: 11, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
                                       ),
                                       const SizedBox(height: 2),
                                       Text(
@@ -283,7 +291,9 @@ class _HistoricoIngressosScreenState extends State<HistoricoIngressosScreen> {
                                         style: TextStyle(
                                           fontWeight: FontWeight.w600,
                                           fontSize: 13,
-                                          color: item.dtSaida != null ? Colors.black87 : Colors.orange.shade800,
+                                          color: item.dtSaida != null
+                                              ? (isDark ? const Color(0xFFF1F5F9) : Colors.black87)
+                                              : Colors.orange.shade800,
                                         ),
                                       ),
                                     ],
@@ -292,18 +302,23 @@ class _HistoricoIngressosScreenState extends State<HistoricoIngressosScreen> {
                                 Container(
                                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                                   decoration: BoxDecoration(
-                                    color: Colors.blueGrey.shade50,
+                                    color: isDark ? const Color(0xFF0F172A) : Colors.blueGrey.shade50,
                                     borderRadius: BorderRadius.circular(8),
+                                    border: isDark ? Border.all(color: const Color(0xFF334155)) : null,
                                   ),
                                   child: Column(
                                     children: [
-                                      const Text(
+                                      Text(
                                         'Duração',
-                                        style: TextStyle(fontSize: 10, color: Color(0xFF64748B)),
+                                        style: TextStyle(fontSize: 10, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
                                       ),
                                       Text(
                                         '${item.duracaoMinutos ?? 0} min',
-                                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 13,
+                                          color: isDark ? const Color(0xFFF8FAFC) : null,
+                                        ),
                                       ),
                                     ],
                                   ),
@@ -314,7 +329,11 @@ class _HistoricoIngressosScreenState extends State<HistoricoIngressosScreen> {
                               const SizedBox(height: 8),
                               Text(
                                 item.observacao!,
-                                style: TextStyle(fontSize: 12, color: Colors.grey.shade700, fontStyle: FontStyle.italic),
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: isDark ? const Color(0xFF94A3B8) : Colors.grey.shade700,
+                                  fontStyle: FontStyle.italic,
+                                ),
                               ),
                             ],
                           ],

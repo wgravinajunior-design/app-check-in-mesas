@@ -71,7 +71,13 @@ class _ComandaTabViewState extends State<ComandaTabView> {
               // Barra de Busca Rápida
               _buildBarraBusca(),
 
-              const Divider(height: 1, thickness: 1),
+              Divider(
+                height: 1,
+                thickness: 1,
+                color: Theme.of(context).brightness == Brightness.dark
+                    ? const Color(0xFF334155)
+                    : const Color(0xFFE2E8F0),
+              ),
 
               Expanded(
                 child: comandasFiltradas.isEmpty
@@ -138,24 +144,27 @@ class _ComandaTabViewState extends State<ComandaTabView> {
   }
 
   Widget _buildFiltrosBar(ComandaLoaded state) {
+    final bool isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-      color: Theme.of(context).cardColor,
+      color: isDark ? const Color(0xFF0F172A) : Theme.of(context).cardColor,
       child: SingleChildScrollView(
         scrollDirection: Axis.horizontal,
         child: Row(
           children: [
-            _buildFiltroChip('TODAS', 'Todas (${state.totalComandas})', Icons.all_inbox_rounded, Colors.blueGrey),
+            _buildFiltroChip('TODAS', 'Todas (${state.totalComandas})', Icons.all_inbox_rounded, isDark ? const Color(0xFF94A3B8) : Colors.blueGrey, isDark),
             const SizedBox(width: 6),
-            _buildFiltroChip('LIVRES', 'Livres (${state.comandasLivres})', Icons.check_circle_outline_rounded, AppTheme.corMesaLivre),
+            _buildFiltroChip('LIVRES', 'Livres (${state.comandasLivres})', Icons.check_circle_outline_rounded, AppTheme.corMesaLivre, isDark),
             const SizedBox(width: 6),
-            _buildFiltroChip('OCUPADAS', 'Ocupadas (${state.comandasOcupadas})', Icons.receipt_long_rounded, AppTheme.corMesaNormal),
+            _buildFiltroChip('OCUPADAS', 'Ocupadas (${state.comandasOcupadas})', Icons.receipt_long_rounded, AppTheme.corMesaNormal, isDark),
             const SizedBox(width: 6),
             _buildFiltroChip(
               'ALERTA',
               'Alerta (${state.comandas.where((c) => c.isOcupada && c.statusPermanencia == StatusPermanencia.alertaTolerancia).length})',
               Icons.warning_amber_rounded,
               AppTheme.corMesaAlerta,
+              isDark,
             ),
             const SizedBox(width: 6),
             _buildFiltroChip(
@@ -163,6 +172,7 @@ class _ComandaTabViewState extends State<ComandaTabView> {
               'Excedidas (${state.comandas.where((c) => c.isOcupada && c.statusPermanencia == StatusPermanencia.limiteExcedido).length})',
               Icons.alarm_on_rounded,
               AppTheme.corMesaExcedida,
+              isDark,
             ),
           ],
         ),
@@ -170,7 +180,7 @@ class _ComandaTabViewState extends State<ComandaTabView> {
     );
   }
 
-  Widget _buildFiltroChip(String filtro, String label, IconData icone, Color cor) {
+  Widget _buildFiltroChip(String filtro, String label, IconData icone, Color cor, bool isDark) {
     final bool selecionado = _filtroAtivo == filtro;
     return FilterChip(
       selected: selecionado,
@@ -184,11 +194,11 @@ class _ComandaTabViewState extends State<ComandaTabView> {
           color: selecionado ? Colors.white : cor,
         ),
       ),
-      backgroundColor: cor.withValues(alpha: 0.1),
+      backgroundColor: isDark ? cor.withValues(alpha: 0.16) : cor.withValues(alpha: 0.1),
       selectedColor: cor,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(20),
-        side: BorderSide(color: selecionado ? cor : cor.withValues(alpha: 0.3)),
+        side: BorderSide(color: selecionado ? cor : cor.withValues(alpha: isDark ? 0.45 : 0.3)),
       ),
       onSelected: (_) {
         setState(() {
@@ -239,6 +249,8 @@ class _ComandaTabViewState extends State<ComandaTabView> {
   }
 
   Widget _buildBarraBusca() {
+    final bool isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       child: TextField(
@@ -260,23 +272,37 @@ class _ComandaTabViewState extends State<ComandaTabView> {
                   },
                 ),
               IconButton(
-                icon: const Icon(Icons.qr_code_scanner_rounded, color: Color(0xFF0D9488)),
+                icon: Icon(
+                  Icons.qr_code_scanner_rounded,
+                  color: isDark ? const Color(0xFF2DD4BF) : const Color(0xFF0D9488),
+                ),
                 tooltip: 'Escanear comanda com a câmera',
                 onPressed: _escanearComandaComCamera,
               ),
             ],
           ),
           filled: true,
-          fillColor: Theme.of(context).cardColor,
+          fillColor: isDark ? const Color(0xFF0F172A) : Theme.of(context).cardColor,
           isDense: true,
           contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(10),
-            borderSide: BorderSide(color: Colors.grey.shade300),
+            borderSide: BorderSide(
+              color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1),
+            ),
           ),
           enabledBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(10),
-            borderSide: BorderSide(color: Colors.grey.shade300),
+            borderSide: BorderSide(
+              color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1),
+            ),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(10),
+            borderSide: BorderSide(
+              color: isDark ? const Color(0xFF2DD4BF) : const Color(0xFF0D9488),
+              width: 1.5,
+            ),
           ),
         ),
         onChanged: (val) {
@@ -349,10 +375,9 @@ class _ComandaTabViewState extends State<ComandaTabView> {
           onConfirmar: () {
             context.read<ComandaCubit>().realizarCheckOut(comanda: comanda);
             ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(
-                    'Check-out efetuado! ${comanda.nomeExibicao} liberada e gravada em TB_INGRESSO.'),
-                backgroundColor: const Color(0xFF0F172A),
+              const SnackBar(
+                content: Text('Check Out efetuado!'),
+                backgroundColor: Color(0xFF0F172A),
                 behavior: SnackBarBehavior.floating,
               ),
             );

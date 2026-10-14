@@ -57,18 +57,19 @@ class MesaCardWidget extends StatelessWidget {
     final corPrimaria = status.corPrimaria;
     final corFundo = status.corFundoClara;
     final bool isExcedida = status == StatusPermanencia.limiteExcedido;
+    final bool isDark = Theme.of(context).brightness == Brightness.dark;
 
     final int tempoVerde = config?.tempoVerdeMinutos ?? 30;
     final int tempoAmarelo = config?.tempoAmareloMinutos ?? 60;
     final int tempoVermelho = config?.tempoVermelhoMinutos ?? 90;
 
     return Card(
-      elevation: isExcedida ? 4 : 1.5,
+      elevation: isExcedida ? 4 : (isDark ? 0 : 1.5),
       shadowColor: isExcedida ? corPrimaria.withValues(alpha: 0.4) : Colors.black12,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
         side: BorderSide(
-          color: corPrimaria.withValues(alpha: isExcedida ? 0.9 : 0.35),
+          color: corPrimaria.withValues(alpha: isExcedida ? 0.9 : (isDark ? 0.45 : 0.35)),
           width: isExcedida ? 2.0 : 1.0,
         ),
       ),
@@ -81,10 +82,15 @@ class MesaCardWidget extends StatelessWidget {
             gradient: LinearGradient(
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
-              colors: [
-                corFundo,
-                Colors.white,
-              ],
+              colors: isDark
+                  ? [
+                      corPrimaria.withValues(alpha: mesa.isOcupada ? 0.22 : 0.08),
+                      const Color(0xFF1E293B),
+                    ]
+                  : [
+                      corFundo,
+                      Colors.white,
+                    ],
             ),
           ),
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
@@ -102,7 +108,7 @@ class MesaCardWidget extends StatelessWidget {
                         Container(
                           padding: const EdgeInsets.all(4),
                           decoration: BoxDecoration(
-                            color: corPrimaria.withValues(alpha: 0.15),
+                            color: corPrimaria.withValues(alpha: isDark ? 0.25 : 0.15),
                             shape: BoxShape.circle,
                           ),
                           child: Icon(
@@ -117,10 +123,10 @@ class MesaCardWidget extends StatelessWidget {
                             mesa.nomeExibicao,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 14,
                               fontWeight: FontWeight.bold,
-                              color: Color(0xFF1E293B),
+                              color: isDark ? const Color(0xFFF8FAFC) : const Color(0xFF1E293B),
                             ),
                           ),
                         ),
@@ -155,13 +161,13 @@ class MesaCardWidget extends StatelessWidget {
                   children: [
                     Row(
                       children: [
-                        const Icon(Icons.login_rounded, size: 12, color: Colors.blueGrey),
+                        Icon(Icons.login_rounded, size: 12, color: isDark ? const Color(0xFF94A3B8) : Colors.blueGrey),
                         const SizedBox(width: 4),
                         Text(
                           'Entrada: ${TimeFormatter.formatTime(mesa.horaEntrada)}',
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 11,
-                            color: Color(0xFF475569),
+                            color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF475569),
                             fontWeight: FontWeight.w500,
                           ),
                         ),
@@ -170,21 +176,28 @@ class MesaCardWidget extends StatelessWidget {
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
                       decoration: BoxDecoration(
-                        color: const Color(0xFFF1F5F9),
+                        color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF1F5F9),
                         borderRadius: BorderRadius.circular(4),
-                        border: Border.all(color: const Color(0xFFCBD5E1), width: 0.7),
+                        border: Border.all(
+                          color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1),
+                          width: 0.7,
+                        ),
                       ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          const Icon(Icons.people_alt_rounded, size: 11, color: Color(0xFF475569)),
+                          Icon(
+                            Icons.people_alt_rounded,
+                            size: 11,
+                            color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF475569),
+                          ),
                           const SizedBox(width: 3),
                           Text(
                             mesa.numeroPessoas > 0 ? '${mesa.numeroPessoas} pess.' : '0 pess.',
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 10,
                               fontWeight: FontWeight.bold,
-                              color: Color(0xFF334155),
+                              color: isDark ? const Color(0xFFCBD5E1) : const Color(0xFF334155),
                             ),
                           ),
                         ],
@@ -197,7 +210,7 @@ class MesaCardWidget extends StatelessWidget {
                   width: double.infinity,
                   padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 6),
                   decoration: BoxDecoration(
-                    color: corPrimaria.withValues(alpha: 0.1),
+                    color: corPrimaria.withValues(alpha: isDark ? 0.22 : 0.1),
                     borderRadius: BorderRadius.circular(6),
                   ),
                   child: Row(
@@ -228,10 +241,10 @@ class MesaCardWidget extends StatelessWidget {
                   width: double.infinity,
                   padding: const EdgeInsets.symmetric(vertical: 3, horizontal: 5),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFF8FAFC),
+                    color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
                     borderRadius: BorderRadius.circular(6),
                     border: Border.all(
-                      color: const Color(0xFFE2E8F0),
+                      color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
                       width: 0.8,
                     ),
                   ),
@@ -246,6 +259,17 @@ class MesaCardWidget extends StatelessWidget {
                               tempoVermelho,
                             );
 
+                            final Color corFundoChip = isDark
+                                ? estilo.corTexto.withValues(alpha: 0.22)
+                                : estilo.corFundo;
+                            final Color corTextoChip = isDark
+                                ? (estilo.corTexto == const Color(0xFF15803D)
+                                    ? const Color(0xFF4ADE80)
+                                    : estilo.corTexto == const Color(0xFFB45309)
+                                        ? const Color(0xFFFBBF24)
+                                        : const Color(0xFFF87171))
+                                : estilo.corTexto;
+
                             return Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
@@ -255,9 +279,12 @@ class MesaCardWidget extends StatelessWidget {
                                     Container(
                                       padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
                                       decoration: BoxDecoration(
-                                        color: estilo.corFundo,
+                                        color: corFundoChip,
                                         borderRadius: BorderRadius.circular(4),
-                                        border: Border.all(color: estilo.corBorda, width: 0.8),
+                                        border: Border.all(
+                                          color: isDark ? estilo.corBorda.withValues(alpha: 0.5) : estilo.corBorda,
+                                          width: 0.8,
+                                        ),
                                       ),
                                       child: Row(
                                         mainAxisSize: MainAxisSize.min,
@@ -265,7 +292,7 @@ class MesaCardWidget extends StatelessWidget {
                                           Icon(
                                             estilo.icone,
                                             size: 11,
-                                            color: estilo.corTexto,
+                                            color: corTextoChip,
                                           ),
                                           const SizedBox(width: 3),
                                           Text(
@@ -273,7 +300,7 @@ class MesaCardWidget extends StatelessWidget {
                                             style: TextStyle(
                                               fontSize: 9.5,
                                               fontWeight: FontWeight.bold,
-                                              color: estilo.corTexto,
+                                              color: corTextoChip,
                                             ),
                                           ),
                                         ],
@@ -281,10 +308,10 @@ class MesaCardWidget extends StatelessWidget {
                                     ),
                                     Text(
                                       'R\$ ${mesa.valorUltimoPedido.toStringAsFixed(2)}',
-                                      style: const TextStyle(
+                                      style: TextStyle(
                                         fontSize: 9.5,
                                         fontWeight: FontWeight.w600,
-                                        color: Color(0xFF1E293B),
+                                        color: isDark ? const Color(0xFFF8FAFC) : const Color(0xFF1E293B),
                                       ),
                                     ),
                                   ],
@@ -295,18 +322,18 @@ class MesaCardWidget extends StatelessWidget {
                                   children: [
                                     Text(
                                       'Total (${mesa.quantidadePedidos} ped):',
-                                      style: const TextStyle(
+                                      style: TextStyle(
                                         fontSize: 9.5,
-                                        color: Color(0xFF64748B),
+                                        color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
                                         fontWeight: FontWeight.w500,
                                       ),
                                     ),
                                     Text(
                                       'R\$ ${mesa.valorTotalConsumo.toStringAsFixed(2)}',
-                                      style: const TextStyle(
+                                      style: TextStyle(
                                         fontSize: 10,
                                         fontWeight: FontWeight.bold,
-                                        color: Color(0xFF15803D),
+                                        color: isDark ? const Color(0xFF4ADE80) : const Color(0xFF15803D),
                                       ),
                                     ),
                                   ],
@@ -325,19 +352,33 @@ class MesaCardWidget extends StatelessWidget {
                               tempoVermelho,
                             );
 
+                            final Color corFundoChip = isDark
+                                ? estilo.corTexto.withValues(alpha: 0.22)
+                                : estilo.corFundo;
+                            final Color corTextoChip = isDark
+                                ? (estilo.corTexto == const Color(0xFF15803D)
+                                    ? const Color(0xFF4ADE80)
+                                    : estilo.corTexto == const Color(0xFFB45309)
+                                        ? const Color(0xFFFBBF24)
+                                        : const Color(0xFFF87171))
+                                : estilo.corTexto;
+
                             return Container(
                               padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
                               decoration: BoxDecoration(
-                                color: estilo.corFundo,
+                                color: corFundoChip,
                                 borderRadius: BorderRadius.circular(4),
-                                border: Border.all(color: estilo.corBorda, width: 0.8),
+                                border: Border.all(
+                                  color: isDark ? estilo.corBorda.withValues(alpha: 0.5) : estilo.corBorda,
+                                  width: 0.8,
+                                ),
                               ),
                               child: Row(
                                 children: [
                                   Icon(
                                     estilo.icone,
                                     size: 11,
-                                    color: estilo.corTexto,
+                                    color: corTextoChip,
                                   ),
                                   const SizedBox(width: 4),
                                   Expanded(
@@ -348,7 +389,7 @@ class MesaCardWidget extends StatelessWidget {
                                       style: TextStyle(
                                         fontSize: 9,
                                         fontWeight: FontWeight.bold,
-                                        color: estilo.corTexto,
+                                        color: corTextoChip,
                                       ),
                                       maxLines: 1,
                                       overflow: TextOverflow.ellipsis,
@@ -370,7 +411,7 @@ class MesaCardWidget extends StatelessWidget {
                         Icon(
                           Icons.add_circle_outline_rounded,
                           size: 22,
-                          color: corPrimaria.withValues(alpha: 0.7),
+                          color: isDark ? const Color(0xFF94A3B8) : corPrimaria.withValues(alpha: 0.7),
                         ),
                         const SizedBox(height: 2),
                         Text(
@@ -378,7 +419,7 @@ class MesaCardWidget extends StatelessWidget {
                           style: TextStyle(
                             fontSize: 11,
                             fontWeight: FontWeight.w600,
-                            color: corPrimaria,
+                            color: isDark ? const Color(0xFF94A3B8) : corPrimaria,
                           ),
                         ),
                       ],
@@ -396,7 +437,7 @@ class MesaCardWidget extends StatelessWidget {
                 decoration: BoxDecoration(
                   border: Border(
                     top: BorderSide(
-                      color: Colors.grey.withValues(alpha: 0.2),
+                      color: isDark ? const Color(0xFF334155) : Colors.grey.withValues(alpha: 0.2),
                       width: 1,
                     ),
                   ),
@@ -408,14 +449,16 @@ class MesaCardWidget extends StatelessWidget {
                       mesa.isOcupada ? 'Check-out' : 'Disponível',
                       style: TextStyle(
                         fontSize: 10,
-                        color: mesa.isOcupada ? Colors.black87 : Colors.green[800],
+                        color: mesa.isOcupada
+                            ? (isDark ? const Color(0xFFF1F5F9) : Colors.black87)
+                            : (isDark ? const Color(0xFF4ADE80) : Colors.green[800]!),
                         fontWeight: FontWeight.w500,
                       ),
                     ),
                     Icon(
                       mesa.isOcupada ? Icons.logout_rounded : Icons.arrow_forward_ios_rounded,
                       size: 11,
-                      color: corPrimaria,
+                      color: isDark && !mesa.isOcupada ? const Color(0xFF4ADE80) : corPrimaria,
                     ),
                   ],
                 ),

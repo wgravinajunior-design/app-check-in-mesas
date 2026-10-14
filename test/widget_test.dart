@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:apk_check_in/core/constants/app_constants.dart';
 import 'package:apk_check_in/core/constants/mesas_padrao_mansao.dart';
+import 'package:apk_check_in/core/services/lan_sync_service.dart';
 import 'package:apk_check_in/core/theme/app_theme.dart';
 import 'package:apk_check_in/core/utils/barcode_parser.dart';
 import 'package:apk_check_in/core/utils/time_formatter.dart';
@@ -296,7 +297,42 @@ void main() {
       expect(AppTheme.corMesaExcedida, equals(const Color(0xFFDC2626))); // Vermelho
       expect(AppTheme.corMesaLivre, equals(const Color(0xFF64748B))); // Slate
     });
+
+    test('LanSyncEvento deve serializar e desserializar corretamente para broadcast UDP', () {
+      const evento = LanSyncEvento(
+        tipo: 'MESA_LIBERADA',
+        origemId: 'dev_123',
+        mesaId: 5,
+        codigoMesa: '005',
+        nomeExibicao: 'Mesa 005',
+        timestamp: 1728900000000,
+      );
+
+      final json = evento.toJson();
+      expect(json['tipo'], equals('MESA_LIBERADA'));
+      expect(json['origemId'], equals('dev_123'));
+      expect(json['mesaId'], equals(5));
+      expect(json['codigoMesa'], equals('005'));
+      expect(json['nomeExibicao'], equals('Mesa 005'));
+
+      final recriado = LanSyncEvento.fromJson(json);
+      expect(recriado.tipo, equals(evento.tipo));
+      expect(recriado.origemId, equals(evento.origemId));
+      expect(recriado.mesaId, equals(evento.mesaId));
+      expect(recriado.codigoMesa, equals(evento.codigoMesa));
+      expect(recriado.nomeExibicao, equals(evento.nomeExibicao));
+      expect(recriado.timestamp, equals(evento.timestamp));
+    });
+
+    test('LanSyncService deve manter deviceId único e instanciar singleton', () {
+      final s1 = LanSyncService();
+      final s2 = LanSyncService.instancia;
+      expect(identical(s1, s2), isTrue);
+      expect(s1.deviceId.isNotEmpty, isTrue);
+      expect(s1.deviceId.startsWith('dev_'), isTrue);
+    });
   });
 }
+
 
 

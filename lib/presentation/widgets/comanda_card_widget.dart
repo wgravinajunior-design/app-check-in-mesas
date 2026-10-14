@@ -19,14 +19,15 @@ class ComandaCardWidget extends StatelessWidget {
     final corPrimaria = status.corPrimaria;
     final corFundo = status.corFundoClara;
     final bool isExcedida = status == StatusPermanencia.limiteExcedido;
+    final bool isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Card(
-      elevation: isExcedida ? 4 : 1.5,
+      elevation: isExcedida ? 4 : (isDark ? 0 : 1.5),
       shadowColor: isExcedida ? corPrimaria.withValues(alpha: 0.4) : Colors.black12,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
         side: BorderSide(
-          color: corPrimaria.withValues(alpha: isExcedida ? 0.9 : 0.35),
+          color: corPrimaria.withValues(alpha: isExcedida ? 0.9 : (isDark ? 0.45 : 0.35)),
           width: isExcedida ? 2.0 : 1.0,
         ),
       ),
@@ -39,10 +40,15 @@ class ComandaCardWidget extends StatelessWidget {
             gradient: LinearGradient(
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
-              colors: [
-                corFundo,
-                Colors.white,
-              ],
+              colors: isDark
+                  ? [
+                      corPrimaria.withValues(alpha: comanda.isOcupada ? 0.22 : 0.08),
+                      const Color(0xFF1E293B),
+                    ]
+                  : [
+                      corFundo,
+                      Colors.white,
+                    ],
             ),
           ),
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
@@ -60,7 +66,7 @@ class ComandaCardWidget extends StatelessWidget {
                         Container(
                           padding: const EdgeInsets.all(4),
                           decoration: BoxDecoration(
-                            color: corPrimaria.withValues(alpha: 0.15),
+                            color: corPrimaria.withValues(alpha: isDark ? 0.25 : 0.15),
                             shape: BoxShape.circle,
                           ),
                           child: Icon(
@@ -75,10 +81,10 @@ class ComandaCardWidget extends StatelessWidget {
                             comanda.nomeExibicao,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 14,
                               fontWeight: FontWeight.bold,
-                              color: Color(0xFF1E293B),
+                              color: isDark ? const Color(0xFFF8FAFC) : const Color(0xFF1E293B),
                             ),
                           ),
                         ),
@@ -110,13 +116,17 @@ class ComandaCardWidget extends StatelessWidget {
               if (comanda.isOcupada) ...[
                 Row(
                   children: [
-                    const Icon(Icons.login_rounded, size: 12, color: Colors.blueGrey),
+                    Icon(
+                      Icons.login_rounded,
+                      size: 12,
+                      color: isDark ? const Color(0xFF94A3B8) : Colors.blueGrey,
+                    ),
                     const SizedBox(width: 4),
                     Text(
                       'Entrada: ${TimeFormatter.formatTime(comanda.horaEntrada)}',
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 11,
-                        color: Color(0xFF475569),
+                        color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF475569),
                         fontWeight: FontWeight.w500,
                       ),
                     ),
@@ -127,7 +137,7 @@ class ComandaCardWidget extends StatelessWidget {
                   width: double.infinity,
                   padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 6),
                   decoration: BoxDecoration(
-                    color: corPrimaria.withValues(alpha: 0.1),
+                    color: corPrimaria.withValues(alpha: isDark ? 0.2 : 0.1),
                     borderRadius: BorderRadius.circular(6),
                   ),
                   child: Row(
@@ -162,7 +172,7 @@ class ComandaCardWidget extends StatelessWidget {
                         Icon(
                           Icons.add_circle_outline_rounded,
                           size: 22,
-                          color: corPrimaria.withValues(alpha: 0.7),
+                          color: corPrimaria.withValues(alpha: isDark ? 0.85 : 0.7),
                         ),
                         const SizedBox(height: 2),
                         Text(
@@ -170,7 +180,7 @@ class ComandaCardWidget extends StatelessWidget {
                           style: TextStyle(
                             fontSize: 11,
                             fontWeight: FontWeight.w600,
-                            color: corPrimaria,
+                            color: isDark ? const Color(0xFF94A3B8) : corPrimaria,
                           ),
                         ),
                       ],
@@ -188,7 +198,9 @@ class ComandaCardWidget extends StatelessWidget {
                 decoration: BoxDecoration(
                   border: Border(
                     top: BorderSide(
-                      color: Colors.grey.withValues(alpha: 0.2),
+                      color: isDark
+                          ? const Color(0xFF334155)
+                          : Colors.grey.withValues(alpha: 0.2),
                       width: 1,
                     ),
                   ),
@@ -200,7 +212,9 @@ class ComandaCardWidget extends StatelessWidget {
                       comanda.isOcupada ? 'Check-out' : 'Disponível',
                       style: TextStyle(
                         fontSize: 10,
-                        color: comanda.isOcupada ? Colors.black87 : Colors.green[800],
+                        color: comanda.isOcupada
+                            ? (isDark ? const Color(0xFFF1F5F9) : Colors.black87)
+                            : (isDark ? const Color(0xFF4ADE80) : Colors.green[800]),
                         fontWeight: FontWeight.w500,
                       ),
                     ),

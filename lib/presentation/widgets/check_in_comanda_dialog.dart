@@ -27,13 +27,17 @@ class _CheckInComandaDialogState extends State<CheckInComandaDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final bool isDark = Theme.of(context).brightness == Brightness.dark;
+
     return AlertDialog(
       title: Row(
         children: [
           Container(
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: AppTheme.corMesaLivreClaro,
+              color: isDark
+                  ? AppTheme.corMesaLivre.withValues(alpha: 0.2)
+                  : AppTheme.corMesaLivreClaro,
               borderRadius: BorderRadius.circular(10),
             ),
             child: const Icon(Icons.receipt_long_rounded, color: AppTheme.corMesaLivre),
@@ -45,11 +49,18 @@ class _CheckInComandaDialogState extends State<CheckInComandaDialog> {
               children: [
                 Text(
                   'Check-in: ${widget.comanda.nomeExibicao}',
-                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 18,
+                    color: isDark ? const Color(0xFFF8FAFC) : null,
+                  ),
                 ),
-                const Text(
+                Text(
                   'Iniciar contagem de permanência da comanda',
-                  style: TextStyle(fontSize: 12, color: Colors.blueGrey),
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: isDark ? const Color(0xFF94A3B8) : Colors.blueGrey,
+                  ),
                 ),
               ],
             ),
@@ -60,17 +71,38 @@ class _CheckInComandaDialogState extends State<CheckInComandaDialog> {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
+          Text(
             'Observação / Identificação do Cliente (opcional):',
-            style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+            style: TextStyle(
+              fontWeight: FontWeight.w600,
+              fontSize: 13,
+              color: isDark ? const Color(0xFFCBD5E1) : null,
+            ),
           ),
           const SizedBox(height: 8),
           TextField(
             controller: _obsController,
             decoration: InputDecoration(
               hintText: 'Ex.: Nome do cliente / mesa vinculada',
+              hintStyle: TextStyle(
+                color: isDark ? const Color(0xFF64748B) : null,
+                fontSize: 13,
+              ),
               prefixIcon: const Icon(Icons.person_pin_circle_outlined, size: 20),
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+              filled: true,
+              fillColor: isDark ? const Color(0xFF0F172A) : null,
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide: BorderSide(
+                  color: isDark ? const Color(0xFF334155) : Colors.grey.shade300,
+                ),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide: BorderSide(
+                  color: isDark ? const Color(0xFF334155) : Colors.grey.shade300,
+                ),
+              ),
               contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
             ),
           ),
@@ -79,7 +111,7 @@ class _CheckInComandaDialogState extends State<CheckInComandaDialog> {
       actions: [
         TextButton(
           onPressed: () => Navigator.of(context).pop(),
-          child: const Text('Cancelar'),
+          child: Text('Cancelar', style: TextStyle(color: isDark ? const Color(0xFF94A3B8) : null)),
         ),
         ElevatedButton.icon(
           style: ElevatedButton.styleFrom(

@@ -29,13 +29,17 @@ class _CheckInDialogState extends State<CheckInDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final bool isDark = Theme.of(context).brightness == Brightness.dark;
+
     return AlertDialog(
       title: Row(
         children: [
           Container(
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: AppTheme.corMesaLivreClaro,
+              color: isDark
+                  ? AppTheme.corMesaLivre.withValues(alpha: 0.2)
+                  : AppTheme.corMesaLivreClaro,
               borderRadius: BorderRadius.circular(10),
             ),
             child: const Icon(Icons.login_rounded, color: AppTheme.corMesaLivre),
@@ -43,7 +47,11 @@ class _CheckInDialogState extends State<CheckInDialog> {
           const SizedBox(width: 12),
           Text(
             'Check-in: ${widget.mesa.nomeExibicao}',
-            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 18,
+              color: isDark ? const Color(0xFFF8FAFC) : null,
+            ),
           ),
         ],
       ),
@@ -55,41 +63,50 @@ class _CheckInDialogState extends State<CheckInDialog> {
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: const Color(0xFFF1F5F9),
+                color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF1F5F9),
                 borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
+                ),
               ),
               child: Column(
                 children: [
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      const Text(
+                      Text(
                         'Horário de Entrada:',
-                        style: TextStyle(color: Color(0xFF64748B), fontSize: 13),
+                        style: TextStyle(
+                          color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                          fontSize: 13,
+                        ),
                       ),
                       Text(
                         TimeFormatter.formatDateTime(_agora),
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontWeight: FontWeight.bold,
-                          color: Color(0xFF1E293B),
+                          color: isDark ? const Color(0xFFF1F5F9) : const Color(0xFF1E293B),
                           fontSize: 13,
                         ),
                       ),
                     ],
                   ),
-                  const Divider(height: 16),
+                  Divider(height: 16, color: isDark ? const Color(0xFF334155) : null),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      const Text(
+                      Text(
                         'Mesa / Identificador:',
-                        style: TextStyle(color: Color(0xFF64748B), fontSize: 13),
+                        style: TextStyle(
+                          color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                          fontSize: 13,
+                        ),
                       ),
                       Text(
                         widget.mesa.codigo,
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontWeight: FontWeight.bold,
-                          color: Color(0xFF1E293B),
+                          color: isDark ? const Color(0xFFF1F5F9) : const Color(0xFF1E293B),
                           fontSize: 13,
                         ),
                       ),
@@ -99,9 +116,13 @@ class _CheckInDialogState extends State<CheckInDialog> {
               ),
             ),
             const SizedBox(height: 16),
-            const Text(
+            Text(
               'Observação (opcional):',
-              style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+              style: TextStyle(
+                fontWeight: FontWeight.w600,
+                fontSize: 13,
+                color: isDark ? const Color(0xFFCBD5E1) : null,
+              ),
             ),
             const SizedBox(height: 6),
             TextField(
@@ -109,24 +130,33 @@ class _CheckInDialogState extends State<CheckInDialog> {
               maxLines: 2,
               decoration: InputDecoration(
                 hintText: 'Ex.: Garçom Lucas, Reserva VIP, 3 pessoas...',
-                hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 13),
+                hintStyle: TextStyle(
+                  color: isDark ? const Color(0xFF64748B) : Colors.grey.shade400,
+                  fontSize: 13,
+                ),
                 filled: true,
-                fillColor: Colors.white,
+                fillColor: isDark ? const Color(0xFF0F172A) : Colors.white,
                 contentPadding: const EdgeInsets.all(12),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(10),
-                  borderSide: BorderSide(color: Colors.grey.shade300),
+                  borderSide: BorderSide(
+                    color: isDark ? const Color(0xFF334155) : Colors.grey.shade300,
+                  ),
                 ),
                 enabledBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(10),
-                  borderSide: BorderSide(color: Colors.grey.shade300),
+                  borderSide: BorderSide(
+                    color: isDark ? const Color(0xFF334155) : Colors.grey.shade300,
+                  ),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  borderSide: BorderSide(
+                    color: isDark ? const Color(0xFF38BDF8) : AppTheme.corMesaLivre,
+                    width: 1.5,
+                  ),
                 ),
               ),
-            ),
-            const SizedBox(height: 12),
-            Text(
-              '* O registo será criado na tabela TB_INGRESSO para auditoria e histórico de permanência.',
-              style: TextStyle(fontSize: 11, color: Colors.blueGrey.shade600, fontStyle: FontStyle.italic),
             ),
           ],
         ),
@@ -134,7 +164,7 @@ class _CheckInDialogState extends State<CheckInDialog> {
       actions: [
         TextButton(
           onPressed: () => Navigator.of(context).pop(),
-          child: const Text('Cancelar'),
+          child: Text('Cancelar', style: TextStyle(color: isDark ? const Color(0xFF94A3B8) : null)),
         ),
         ElevatedButton(
           style: ElevatedButton.styleFrom(

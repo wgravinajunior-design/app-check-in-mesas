@@ -187,6 +187,7 @@ class _ConfigDialogState extends State<ConfigDialog> {
   Widget build(BuildContext context) {
     final media = MediaQuery.of(context);
     final isTablet = media.size.width >= 600;
+    final bool isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Dialog(
       insetPadding: EdgeInsets.symmetric(
@@ -208,13 +209,21 @@ class _ConfigDialogState extends State<ConfigDialog> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Row(
+                  Row(
                     children: [
-                      Icon(Icons.settings_outlined, color: Color(0xFF0D47A1), size: 22),
-                      SizedBox(width: 8),
+                      Icon(
+                        Icons.settings_outlined,
+                        color: isDark ? const Color(0xFF38BDF8) : const Color(0xFF0D47A1),
+                        size: 22,
+                      ),
+                      const SizedBox(width: 8),
                       Text(
                         'Configurações',
-                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 18,
+                          color: isDark ? const Color(0xFFF8FAFC) : null,
+                        ),
                       ),
                     ],
                   ),
@@ -239,19 +248,27 @@ class _ConfigDialogState extends State<ConfigDialog> {
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                           decoration: BoxDecoration(
-                            color: const Color(0xFFF1F5F9),
+                            color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF1F5F9),
                             borderRadius: BorderRadius.circular(10),
-                            border: Border.all(color: const Color(0xFFCBD5E1)),
+                            border: Border.all(
+                              color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1),
+                            ),
                           ),
                           child: Row(
                             children: [
                               Container(
                                 padding: const EdgeInsets.all(6),
                                 decoration: BoxDecoration(
-                                  color: const Color(0xFF0D47A1).withValues(alpha: 0.12),
+                                  color: isDark
+                                      ? const Color(0xFF0284C7).withValues(alpha: 0.25)
+                                      : const Color(0xFF0D47A1).withValues(alpha: 0.12),
                                   borderRadius: BorderRadius.circular(6),
                                 ),
-                                child: const Icon(Icons.receipt_long_rounded, color: Color(0xFF0D47A1), size: 20),
+                                child: Icon(
+                                  Icons.receipt_long_rounded,
+                                  color: isDark ? const Color(0xFF38BDF8) : const Color(0xFF0D47A1),
+                                  size: 20,
+                                ),
                               ),
                               const SizedBox(width: 10),
                               Expanded(
@@ -264,14 +281,17 @@ class _ConfigDialogState extends State<ConfigDialog> {
                                     ),
                                     Text(
                                       'Histórico de check-in, check-out e rotatividade.',
-                                      style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        color: isDark ? const Color(0xFF94A3B8) : Colors.grey.shade600,
+                                      ),
                                     ),
                                   ],
                                 ),
                               ),
                               ElevatedButton.icon(
                                 style: ElevatedButton.styleFrom(
-                                  backgroundColor: const Color(0xFF0D47A1),
+                                  backgroundColor: isDark ? const Color(0xFF2563EB) : const Color(0xFF0D47A1),
                                   foregroundColor: Colors.white,
                                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
@@ -293,18 +313,24 @@ class _ConfigDialogState extends State<ConfigDialog> {
                         Container(
                           padding: const EdgeInsets.all(14),
                           decoration: BoxDecoration(
-                            color: const Color(0xFFF8FAFC),
+                            color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
                             borderRadius: BorderRadius.circular(12),
-                            border: Border.all(color: const Color(0xFFE2E8F0)),
+                            border: Border.all(
+                              color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
+                            ),
                           ),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.stretch,
                             children: [
-                              const Row(
+                              Row(
                                 children: [
-                                  Icon(Icons.storage_rounded, color: Color(0xFF1565C0), size: 19),
-                                  SizedBox(width: 8),
-                                  Text(
+                                  Icon(
+                                    Icons.storage_rounded,
+                                    color: isDark ? const Color(0xFF38BDF8) : const Color(0xFF1565C0),
+                                    size: 19,
+                                  ),
+                                  const SizedBox(width: 8),
+                                  const Text(
                                     'Conexão',
                                     style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
                                   ),
@@ -487,9 +513,11 @@ class _ConfigDialogState extends State<ConfigDialog> {
                         Container(
                           padding: const EdgeInsets.all(14),
                           decoration: BoxDecoration(
-                            color: Colors.white,
+                            color: isDark ? const Color(0xFF0F172A) : Colors.white,
                             borderRadius: BorderRadius.circular(12),
-                            border: Border.all(color: const Color(0xFFE2E8F0)),
+                            border: Border.all(
+                              color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
+                            ),
                           ),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -499,23 +527,32 @@ class _ConfigDialogState extends State<ConfigDialog> {
                                   Container(
                                     padding: const EdgeInsets.all(5),
                                     decoration: BoxDecoration(
-                                      color: const Color(0xFF0D47A1).withValues(alpha: 0.1),
+                                      color: isDark
+                                          ? const Color(0xFF38BDF8).withValues(alpha: 0.2)
+                                          : const Color(0xFF0D47A1).withValues(alpha: 0.1),
                                       borderRadius: BorderRadius.circular(6),
                                     ),
-                                    child: const Icon(Icons.timer_outlined, color: Color(0xFF0D47A1), size: 18),
+                                    child: Icon(
+                                      Icons.timer_outlined,
+                                      color: isDark ? const Color(0xFF38BDF8) : const Color(0xFF0D47A1),
+                                      size: 18,
+                                    ),
                                   ),
                                   const SizedBox(width: 8),
-                                  const Expanded(
+                                  Expanded(
                                     child: Column(
                                       crossAxisAlignment: CrossAxisAlignment.start,
                                       children: [
-                                        Text(
+                                        const Text(
                                           'Tempo Sem Pedir Nada (Cores da Mesa)',
                                           style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
                                         ),
                                         Text(
                                           'Configuração de minutos para alternar as cores: Verde, Amarelo e Vermelho',
-                                          style: TextStyle(fontSize: 10.5, color: Color(0xFF64748B)),
+                                          style: TextStyle(
+                                            fontSize: 10.5,
+                                            color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                                          ),
                                         ),
                                       ],
                                     ),
@@ -630,18 +667,20 @@ class _ConfigDialogState extends State<ConfigDialog> {
                                   return Container(
                                     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                                     decoration: BoxDecoration(
-                                      color: const Color(0xFFF8FAFC),
+                                      color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC),
                                       borderRadius: BorderRadius.circular(8),
-                                      border: Border.all(color: const Color(0xFFE2E8F0)),
+                                      border: Border.all(
+                                        color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
+                                      ),
                                     ),
                                     child: Row(
                                       mainAxisAlignment: MainAxisAlignment.spaceAround,
                                       children: [
-                                        _buildFaixaLegenda('Verde', '0 a ${v}m', const Color(0xFF16A34A), const Color(0xFFDCFCE7)),
+                                        _buildFaixaLegenda('Verde', '0 a ${v}m', const Color(0xFF16A34A), const Color(0xFFDCFCE7), isDark),
                                         const Icon(Icons.arrow_forward_rounded, size: 12, color: Color(0xFF94A3B8)),
-                                        _buildFaixaLegenda('Amarelo', '${v + 1} a ${a}m', const Color(0xFFD97706), const Color(0xFFFEF3C7)),
+                                        _buildFaixaLegenda('Amarelo', '${v + 1} a ${a}m', const Color(0xFFD97706), const Color(0xFFFEF3C7), isDark),
                                         const Icon(Icons.arrow_forward_rounded, size: 12, color: Color(0xFF94A3B8)),
-                                        _buildFaixaLegenda('Vermelho', '> ${a}m (limite ${r}m)', const Color(0xFFDC2626), const Color(0xFFFEE2E2)),
+                                        _buildFaixaLegenda('Vermelho', '> ${a}m (limite ${r}m)', const Color(0xFFDC2626), const Color(0xFFFEE2E2), isDark),
                                       ],
                                     ),
                                   );
@@ -673,18 +712,24 @@ class _ConfigDialogState extends State<ConfigDialog> {
                         Container(
                           padding: const EdgeInsets.all(12),
                           decoration: BoxDecoration(
-                            color: const Color(0xFFF8FAFC),
+                            color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
                             borderRadius: BorderRadius.circular(10),
-                            border: Border.all(color: const Color(0xFFE2E8F0)),
+                            border: Border.all(
+                              color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
+                            ),
                           ),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              const Row(
+                              Row(
                                 children: [
-                                  Icon(Icons.tune_rounded, color: Color(0xFF0F172A), size: 18),
-                                  SizedBox(width: 8),
-                                  Text(
+                                  Icon(
+                                    Icons.tune_rounded,
+                                    color: isDark ? const Color(0xFF38BDF8) : const Color(0xFF0F172A),
+                                    size: 18,
+                                  ),
+                                  const SizedBox(width: 8),
+                                  const Text(
                                     'Operação do Salão & Preferências',
                                     style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
                                   ),
@@ -817,12 +862,12 @@ class _ConfigDialogState extends State<ConfigDialog> {
                 children: [
                   TextButton(
                     onPressed: () => Navigator.of(context).pop(),
-                    child: const Text('Cancelar'),
+                    child: Text('Cancelar', style: TextStyle(color: isDark ? const Color(0xFF94A3B8) : null)),
                   ),
                   const SizedBox(width: 10),
                   ElevatedButton(
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF0D47A1),
+                      backgroundColor: isDark ? const Color(0xFF2563EB) : const Color(0xFF0D47A1),
                       foregroundColor: Colors.white,
                       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
@@ -845,13 +890,13 @@ class _ConfigDialogState extends State<ConfigDialog> {
     );
   }
 
-  Widget _buildFaixaLegenda(String titulo, String intervalo, Color corTexto, Color corFundo) {
+  Widget _buildFaixaLegenda(String titulo, String intervalo, Color corTexto, Color corFundo, bool isDark) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3.5),
       decoration: BoxDecoration(
-        color: corFundo,
+        color: isDark ? corTexto.withValues(alpha: 0.18) : corFundo,
         borderRadius: BorderRadius.circular(6),
-        border: Border.all(color: corTexto.withValues(alpha: 0.35)),
+        border: Border.all(color: corTexto.withValues(alpha: isDark ? 0.45 : 0.35)),
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
