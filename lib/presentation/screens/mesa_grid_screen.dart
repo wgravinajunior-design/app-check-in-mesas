@@ -335,9 +335,12 @@ class _MesaGridScreenState extends State<MesaGridScreen> {
             );
           }
 
+          final double screenWidth = MediaQuery.of(context).size.width;
+          final bool isDesktop = screenWidth >= 650;
+
           final Widget scaffoldContent = Scaffold(
             appBar: AppBar(
-              titleSpacing: 8,
+              titleSpacing: 12,
               title: const Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
@@ -384,7 +387,8 @@ class _MesaGridScreenState extends State<MesaGridScreen> {
                           ? const Color(0xFF38BDF8)
                           : const Color(0xFF0284C7),
                       elevation: 0,
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 0),
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 0),
+                      minimumSize: const Size(0, 32),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(8),
                         side: BorderSide(
@@ -395,80 +399,81 @@ class _MesaGridScreenState extends State<MesaGridScreen> {
                         ),
                       ),
                     ),
-                    icon: const Icon(Icons.inventory_2_rounded, size: 16),
+                    icon: const Icon(Icons.inventory_2_rounded, size: 15),
                     label: const Text(
                       'Status Produtos',
                       style: TextStyle(
-                        fontSize: 12,
+                        fontSize: 11.5,
                         fontWeight: FontWeight.bold,
-                        letterSpacing: 0.2,
+                        letterSpacing: 0.1,
                       ),
                     ),
                     onPressed: () => _abrirStatusProdutos(context),
                   ),
                 ),
 
-                // Alternar Modo Escuro
-                IconButton(
-                  visualDensity: VisualDensity.compact,
-                  padding: const EdgeInsets.symmetric(horizontal: 2),
-                  constraints: const BoxConstraints(minWidth: 34, minHeight: 34),
-                  tooltip: config.modoEscuro
-                      ? 'Alternar para Modo Claro'
-                      : 'Alternar para Modo Escuro',
-                  icon: Icon(
-                    config.modoEscuro
-                      ? Icons.light_mode_rounded
-                      : Icons.dark_mode_outlined,
-                    size: 20,
+                if (isDesktop) ...[
+                  // Alternar Modo Escuro
+                  IconButton(
+                    visualDensity: VisualDensity.compact,
+                    padding: const EdgeInsets.symmetric(horizontal: 2),
+                    constraints: const BoxConstraints(minWidth: 34, minHeight: 34),
+                    tooltip: config.modoEscuro
+                        ? 'Alternar para Modo Claro'
+                        : 'Alternar para Modo Escuro',
+                    icon: Icon(
+                      config.modoEscuro
+                          ? Icons.light_mode_rounded
+                          : Icons.dark_mode_outlined,
+                      size: 20,
+                    ),
+                    onPressed: () {
+                      final novaConfig =
+                          config.copyWith(modoEscuro: !config.modoEscuro);
+                      context.read<ConfigCubit>().salvarConfiguracoes(novaConfig);
+                    },
                   ),
-                  onPressed: () {
-                    final novaConfig =
-                        config.copyWith(modoEscuro: !config.modoEscuro);
-                    context.read<ConfigCubit>().salvarConfiguracoes(novaConfig);
-                  },
-                ),
 
+                  // Métricas do Salão
+                  IconButton(
+                    visualDensity: VisualDensity.compact,
+                    padding: const EdgeInsets.symmetric(horizontal: 2),
+                    constraints: const BoxConstraints(minWidth: 34, minHeight: 34),
+                    tooltip: 'Métricas e Giro do Salão',
+                    icon: const Icon(Icons.analytics_outlined, size: 20),
+                    onPressed: () {
+                      final mesaState = context.read<MesaCubit>().state;
+                      if (mesaState is MesaLoaded) {
+                        showDialog(
+                          context: context,
+                          builder: (_) => MetricasSalaoDialog(mesas: mesaState.mesas),
+                        );
+                      }
+                    },
+                  ),
 
-                // Métricas do Salão
-                IconButton(
-                  visualDensity: VisualDensity.compact,
-                  padding: const EdgeInsets.symmetric(horizontal: 2),
-                  constraints: const BoxConstraints(minWidth: 34, minHeight: 34),
-                  tooltip: 'Métricas e Giro do Salão',
-                  icon: const Icon(Icons.analytics_outlined, size: 20),
-                  onPressed: () {
-                    final mesaState = context.read<MesaCubit>().state;
-                    if (mesaState is MesaLoaded) {
-                      showDialog(
-                        context: context,
-                        builder: (_) => MetricasSalaoDialog(mesas: mesaState.mesas),
-                      );
-                    }
-                  },
-                ),
+                  // Verificar Atualização
+                  IconButton(
+                    visualDensity: VisualDensity.compact,
+                    padding: const EdgeInsets.symmetric(horizontal: 2),
+                    constraints: const BoxConstraints(minWidth: 34, minHeight: 34),
+                    tooltip: 'Verificar Atualização (APK)',
+                    icon: const Icon(Icons.system_update_alt_rounded, size: 20),
+                    onPressed: () => _checarAtualizacao(silencioso: false),
+                  ),
 
-                // Verificar Atualização
-                IconButton(
-                  visualDensity: VisualDensity.compact,
-                  padding: const EdgeInsets.symmetric(horizontal: 2),
-                  constraints: const BoxConstraints(minWidth: 34, minHeight: 34),
-                  tooltip: 'Verificar Atualização (APK)',
-                  icon: const Icon(Icons.system_update_alt_rounded, size: 20),
-                  onPressed: () => _checarAtualizacao(silencioso: false),
-                ),
+                  // Configurações
+                  IconButton(
+                    visualDensity: VisualDensity.compact,
+                    padding: const EdgeInsets.symmetric(horizontal: 2),
+                    constraints: const BoxConstraints(minWidth: 34, minHeight: 34),
+                    tooltip: 'Configurações e Conexão',
+                    icon: const Icon(Icons.settings_outlined, size: 20),
+                    onPressed: () => _abrirConfiguracoes(context),
+                  ),
+                ],
 
-                // Configurações
-                IconButton(
-                  visualDensity: VisualDensity.compact,
-                  padding: const EdgeInsets.symmetric(horizontal: 2),
-                  constraints: const BoxConstraints(minWidth: 34, minHeight: 34),
-                  tooltip: 'Configurações e Conexão',
-                  icon: const Icon(Icons.settings_outlined, size: 20),
-                  onPressed: () => _abrirConfiguracoes(context),
-                ),
-
-                // Recarregar Manual
+                // Recarregar Manual (sempre visível)
                 IconButton(
                   visualDensity: VisualDensity.compact,
                   padding: const EdgeInsets.symmetric(horizontal: 2),
@@ -491,6 +496,87 @@ class _MesaGridScreenState extends State<MesaGridScreen> {
                     );
                   },
                 ),
+
+                if (!isDesktop)
+                  // Menu de Mais Opções para mobile
+                  PopupMenuButton<String>(
+                    tooltip: 'Mais Opções',
+                    icon: const Icon(Icons.more_vert_rounded, size: 20),
+                    onSelected: (value) {
+                      switch (value) {
+                        case 'configuracoes':
+                          _abrirConfiguracoes(context);
+                          break;
+                        case 'tema':
+                          final novaConfig =
+                              config.copyWith(modoEscuro: !config.modoEscuro);
+                          context.read<ConfigCubit>().salvarConfiguracoes(novaConfig);
+                          break;
+                        case 'metricas':
+                          final mesaState = context.read<MesaCubit>().state;
+                          if (mesaState is MesaLoaded) {
+                            showDialog(
+                              context: context,
+                              builder: (_) =>
+                                  MetricasSalaoDialog(mesas: mesaState.mesas),
+                            );
+                          }
+                          break;
+                        case 'atualizacao':
+                          _checarAtualizacao(silencioso: false);
+                          break;
+                      }
+                    },
+                    itemBuilder: (context) => [
+                      const PopupMenuItem(
+                        value: 'configuracoes',
+                        child: Row(
+                          children: [
+                            Icon(Icons.settings_outlined, size: 19),
+                            SizedBox(width: 10),
+                            Text('Configurações'),
+                          ],
+                        ),
+                      ),
+                      PopupMenuItem(
+                        value: 'tema',
+                        child: Row(
+                          children: [
+                            Icon(
+                              config.modoEscuro
+                                  ? Icons.light_mode_rounded
+                                  : Icons.dark_mode_outlined,
+                              size: 19,
+                            ),
+                            const SizedBox(width: 10),
+                            Text(config.modoEscuro
+                                ? 'Modo Claro'
+                                : 'Modo Escuro'),
+                          ],
+                        ),
+                      ),
+                      const PopupMenuItem(
+                        value: 'metricas',
+                        child: Row(
+                          children: [
+                            Icon(Icons.analytics_outlined, size: 19),
+                            SizedBox(width: 10),
+                            Text('Métricas do Salão'),
+                          ],
+                        ),
+                      ),
+                      const PopupMenuItem(
+                        value: 'atualizacao',
+                        child: Row(
+                          children: [
+                            Icon(Icons.system_update_alt_rounded, size: 19),
+                            SizedBox(width: 10),
+                            Text('Verificar Atualização'),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
                 const SizedBox(width: 4),
               ],
             ),

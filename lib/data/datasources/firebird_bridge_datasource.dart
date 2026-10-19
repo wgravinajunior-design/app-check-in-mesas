@@ -153,7 +153,9 @@ class FirebirdBridgeDataSource {
 
       final q = db.query();
       await q.openCursor(
-        sql: 'SELECT MSA_ID, MSA_EMPRESA, MSA_CODIGO, MSA_DESCRICAO, MSA_NR_PESSOAS, MSA_STATUS '
+        sql: 'SELECT MSA_ID, MSA_EMPRESA, MSA_CODIGO, '
+            'CAST(CAST(MSA_DESCRICAO AS VARCHAR(100) CHARACTER SET WIN1252) AS VARCHAR(100) CHARACTER SET UTF8) AS MSA_DESCRICAO, '
+            'MSA_NR_PESSOAS, MSA_STATUS '
             'FROM TB_MESA '
             'ORDER BY MSA_ID',
       );
@@ -202,7 +204,7 @@ SELECT
     MSA_ID || ';' ||
     COALESCE(MSA_EMPRESA, 1) || ';' ||
     TRIM(MSA_CODIGO) || ';' ||
-    COALESCE(TRIM(MSA_DESCRICAO), '') || ';' ||
+    COALESCE(TRIM(CAST(CAST(MSA_DESCRICAO AS VARCHAR(100) CHARACTER SET WIN1252) AS VARCHAR(100) CHARACTER SET UTF8)), '') || ';' ||
     COALESCE(MSA_NR_PESSOAS, 4) || ';' ||
     COALESCE(MSA_STATUS, 'A')
 FROM TB_MESA
@@ -225,7 +227,8 @@ ORDER BY MSA_ID;
           await process.stdin.flush();
           await process.stdin.close();
 
-          final output = await process.stdout.transform(systemEncoding.decoder).join();
+          final rawBytes = await process.stdout.fold<List<int>>([], (prev, element) => prev..addAll(element));
+          final output = utf8.decode(rawBytes, allowMalformed: true);
           final exitCode = await process.exitCode;
 
           if (exitCode == 0) {
@@ -1050,12 +1053,12 @@ SELECT
     P.PRD_ID,
     COALESCE(P.PRD_EMPRESA, ${config.empresaId}) AS PRD_EMPRESA,
     COALESCE(P.PRD_CODIGO, CAST(P.PRD_ID AS VARCHAR(20))) AS PRD_CODIGO,
-    P.PRD_DESCRICAO,
+    CAST(CAST(P.PRD_DESCRICAO AS VARCHAR(200) CHARACTER SET WIN1252) AS VARCHAR(200) CHARACTER SET UTF8) AS PRD_DESCRICAO,
     COALESCE(P.PRD_STATUS, 'A') AS PRD_STATUS,
     COALESCE(P.PRD_PRECO_VENDA, 0.0) AS PRD_PRECO_VENDA,
-    G.PGRU_DESCRICAO,
-    P.PRD_REFERENCIA,
-    P.PRD_UN_VENDA
+    CAST(CAST(G.PGRU_DESCRICAO AS VARCHAR(100) CHARACTER SET WIN1252) AS VARCHAR(100) CHARACTER SET UTF8) AS PGRU_DESCRICAO,
+    CAST(CAST(P.PRD_REFERENCIA AS VARCHAR(100) CHARACTER SET WIN1252) AS VARCHAR(100) CHARACTER SET UTF8) AS PRD_REFERENCIA,
+    CAST(CAST(P.PRD_UN_VENDA AS VARCHAR(20) CHARACTER SET WIN1252) AS VARCHAR(20) CHARACTER SET UTF8) AS PRD_UN_VENDA
 FROM TB_PRODUTO P
 LEFT JOIN TB_PROD_GRUPO G ON G.PGRU_ID = P.PRD_GRUPO AND (G.PGRU_EMPRESA = P.PRD_EMPRESA OR G.PGRU_EMPRESA IS NULL)
 WHERE (P.PRD_EMPRESA = ${config.empresaId} OR P.PRD_EMPRESA IS NULL)
@@ -1104,12 +1107,12 @@ SELECT
     P.PRD_ID || ';' ||
     COALESCE(P.PRD_EMPRESA, ${config.empresaId}) || ';' ||
     COALESCE(P.PRD_CODIGO, CAST(P.PRD_ID AS VARCHAR(20))) || ';' ||
-    P.PRD_DESCRICAO || ';' ||
+    COALESCE(CAST(CAST(P.PRD_DESCRICAO AS VARCHAR(200) CHARACTER SET WIN1252) AS VARCHAR(200) CHARACTER SET UTF8), '') || ';' ||
     COALESCE(P.PRD_STATUS, 'A') || ';' ||
     COALESCE(P.PRD_PRECO_VENDA, 0.0) || ';' ||
-    COALESCE(G.PGRU_DESCRICAO, '') || ';' ||
-    COALESCE(P.PRD_REFERENCIA, '') || ';' ||
-    COALESCE(P.PRD_UN_VENDA, '')
+    COALESCE(CAST(CAST(G.PGRU_DESCRICAO AS VARCHAR(100) CHARACTER SET WIN1252) AS VARCHAR(100) CHARACTER SET UTF8), '') || ';' ||
+    COALESCE(CAST(CAST(P.PRD_REFERENCIA AS VARCHAR(100) CHARACTER SET WIN1252) AS VARCHAR(100) CHARACTER SET UTF8), '') || ';' ||
+    COALESCE(CAST(CAST(P.PRD_UN_VENDA AS VARCHAR(20) CHARACTER SET WIN1252) AS VARCHAR(20) CHARACTER SET UTF8), '')
 FROM TB_PRODUTO P
 LEFT JOIN TB_PROD_GRUPO G ON G.PGRU_ID = P.PRD_GRUPO AND (G.PGRU_EMPRESA = P.PRD_EMPRESA OR G.PGRU_EMPRESA IS NULL)
 WHERE (P.PRD_EMPRESA = ${config.empresaId} OR P.PRD_EMPRESA IS NULL)
@@ -1128,7 +1131,8 @@ ORDER BY P.PRD_DESCRICAO ASC;
           await process.stdin.flush();
           await process.stdin.close();
 
-          final output = await process.stdout.transform(systemEncoding.decoder).join();
+          final rawBytes = await process.stdout.fold<List<int>>([], (prev, element) => prev..addAll(element));
+          final output = utf8.decode(rawBytes, allowMalformed: true);
           final exitCode = await process.exitCode;
 
           if (exitCode == 0) {
