@@ -67,9 +67,23 @@ class LocalDatabase {
         PEV_STATUS TEXT DEFAULT 'F'
       )
     ''');
+    // Tabela TB_PRODUTO para cache local de produtos e status
     await db.execute('''
-      CREATE INDEX IF NOT EXISTS IDX_TB_PEDIDO_VENDA_MESA_DATA
-      ON TB_PEDIDO_VENDA (PEV_EMPRESA, PEV_MESA, PEV_DT_LANCAMENTO)
+      CREATE TABLE IF NOT EXISTS TB_PRODUTO (
+        PRD_ID INTEGER PRIMARY KEY,
+        PRD_EMPRESA INTEGER NOT NULL,
+        PRD_CODIGO TEXT,
+        PRD_DESCRICAO TEXT NOT NULL,
+        PRD_STATUS TEXT NOT NULL DEFAULT 'A',
+        PRD_PRECO_VENDA REAL DEFAULT 0.0,
+        PRD_GRUPO_DESC TEXT,
+        PRD_REFERENCIA TEXT,
+        PRD_UN_VENDA TEXT
+      )
+    ''');
+    await db.execute('''
+      CREATE INDEX IF NOT EXISTS IDX_TB_PRODUTO_EMPRESA_DESC 
+      ON TB_PRODUTO (PRD_EMPRESA, PRD_DESCRICAO)
     ''');
   }
 

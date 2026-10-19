@@ -4,19 +4,23 @@ import 'core/theme/app_theme.dart';
 import 'data/datasources/comanda_local_datasource.dart';
 import 'data/datasources/ingresso_local_datasource.dart';
 import 'data/datasources/mesa_local_datasource.dart';
+import 'data/datasources/produto_local_datasource.dart';
 import 'data/datasources/retaguarda_sync_datasource.dart';
 import 'data/repositories/comanda_repository_impl.dart';
 import 'data/repositories/config_repository_impl.dart';
 import 'data/repositories/ingresso_repository_impl.dart';
 import 'data/repositories/mesa_repository_impl.dart';
+import 'data/repositories/produto_repository_impl.dart';
 import 'domain/repositories/comanda_repository.dart';
 import 'domain/repositories/config_repository.dart';
 import 'domain/repositories/ingresso_repository.dart';
 import 'domain/repositories/mesa_repository.dart';
+import 'domain/repositories/produto_repository.dart';
 import 'presentation/cubits/comanda/comanda_cubit.dart';
 import 'presentation/cubits/config/config_cubit.dart';
 import 'presentation/cubits/config/config_state.dart';
 import 'presentation/cubits/mesa/mesa_cubit.dart';
+import 'presentation/cubits/produto/produto_cubit.dart';
 import 'presentation/screens/mesa_grid_screen.dart';
 
 void main() async {
@@ -35,6 +39,9 @@ void main() async {
   final ComandaRepository comandaRepository = ComandaRepositoryImpl(
     localDataSource: ComandaLocalDataSource(),
   );
+  final ProdutoRepository produtoRepository = ProdutoRepositoryImpl(
+    localDataSource: ProdutoLocalDataSource(),
+  );
 
   runApp(
     CheckMesaApp(
@@ -42,6 +49,7 @@ void main() async {
       ingressoRepository: ingressoRepository,
       mesaRepository: mesaRepository,
       comandaRepository: comandaRepository,
+      produtoRepository: produtoRepository,
     ),
   );
 }
@@ -51,6 +59,7 @@ class CheckMesaApp extends StatelessWidget {
   final IngressoRepository ingressoRepository;
   final MesaRepository mesaRepository;
   final ComandaRepository comandaRepository;
+  final ProdutoRepository produtoRepository;
 
   const CheckMesaApp({
     super.key,
@@ -58,6 +67,7 @@ class CheckMesaApp extends StatelessWidget {
     required this.ingressoRepository,
     required this.mesaRepository,
     required this.comandaRepository,
+    required this.produtoRepository,
   });
 
   @override
@@ -92,6 +102,11 @@ class CheckMesaApp extends StatelessWidget {
             });
             return comandaCubit;
           },
+        ),
+        BlocProvider<ProdutoCubit>(
+          create: (_) => ProdutoCubit(
+            produtoRepository: produtoRepository,
+          ),
         ),
       ],
       child: BlocBuilder<ConfigCubit, ConfigState>(

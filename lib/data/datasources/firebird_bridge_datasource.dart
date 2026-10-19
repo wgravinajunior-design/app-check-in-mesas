@@ -10,9 +10,11 @@ import '../../domain/entities/consumo_mesa_resumo.dart';
 import '../../domain/entities/ingresso.dart';
 import '../../domain/entities/mesa.dart';
 import '../../domain/entities/pedido_resumo.dart';
+import '../../domain/entities/produto.dart';
 import '../../domain/entities/status_permanencia.dart';
 import '../models/mesa_model.dart';
 import '../models/pedido_resumo_model.dart';
+import '../models/produto_model.dart';
 
 /// DataSource para conexão direta nativa com a base de dados Firebird 5.0
 /// Utiliza o driver nativo oficial do Firebird (fbdb + libfbclient.so no Android / fbclient.dll no Windows)
@@ -301,7 +303,15 @@ ORDER BY MSA_ID;
       );
 
       try {
-        await db.execute(sql: sql);
+        final stmts = sql
+            .split(';')
+            .map((s) => s.trim())
+            .where((s) => s.isNotEmpty && s.toUpperCase() != 'COMMIT')
+            .toList();
+
+        for (final stmt in stmts) {
+          await db.execute(sql: stmt);
+        }
         return;
       } finally {
         await db.detach();
@@ -1024,4 +1034,217 @@ ORDER BY PEV_DT_LANCAMENTO DESC;
 
     return resultado;
   }
+
+  /// Consulta todos os produtos cadastrados na TB_PRODUTO da retaguarda Firebird 5.0
+  Future<List<ProdutoModel>> listarProdutosDaBaseFirebird({
+    required AppConfig config,
+  }) async {
+    final hostLimpo = config.hostBanco.trim();
+    final porta = config.portaBanco > 0 ? config.portaBanco : AppConstants.defaultPortaFirebird;
+    final databasePath = config.caminhoBanco.trim();
+    final user = config.usuarioBanco.trim();
+    final password = config.senhaBanco.trim();
+
+    final sql = '''
+SELECT
+    P.PRD_ID,
+    COALESCE(P.PRD_EMPRESA, ${config.empresaId}) AS PRD_EMPRESA,
+    COALESCE(P.PRD_CODIGO, CAST(P.PRD_ID AS VARCHAR(20))) AS PRD_CODIGO,
+    P.PRD_DESCRICAO,
+    COALESCE(P.PRD_STATUS, 'A') AS PRD_STATUS,
+    COALESCE(P.PRD_PRECO_VENDA, 0.0) AS PRD_PRECO_VENDA,
+    G.PGRU_DESCRICAO,
+    P.PRD_REFERENCIA,
+    P.PRD_UN_VENDA
+FROM TB_PRODUTO P
+LEFT JOIN TB_PROD_GRUPO G ON G.PGRU_ID = P.PRD_GRUPO AND (G.PGRU_EMPRESA = P.PRD_EMPRESA OR G.PGRU_EMPRESA IS NULL)
+WHERE (P.PRD_EMPRESA = ${config.empresaId} OR P.PRD_EMPRESA IS NULL)
+ORDER BY P.PRD_DESCRICAO ASC;
+''';
+
+    // 1. Tenta via FbDb nativo
+    try {
+      final db = await FbDb.attach(
+        host: hostLimpo,
+        port: porta,
+        database: databasePath,
+        user: user,
+        password: password,
+      );
+
+      final q = db.query();
+      await q.openCursor(sql: sql);
+
+      final List<ProdutoModel> produtos = [];
+      await for (final row in q.rows()) {
+        final prod = ProdutoModel.fromFirebirdRow(row);
+        if (prod.id > 0 && prod.descricao.isNotEmpty) {
+          produtos.add(prod);
+        }
+      }
+
+      await q.close();
+      await db.detach();
+
+      if (produtos.isNotEmpty) {
+        return produtos;
+      }
+    } catch (e) {
+      debugPrint('FbDb nativo: erro ao listar produtos: $e');
+    }
+
+    // 2. Fallback via ISQL no Windows
+    if (!kIsWeb && Platform.isWindows) {
+      final isqlPath = _obterCaminhoIsql();
+      if (isqlPath != null) {
+        final stringConexao = _montarStringConexao(config);
+        final sqlIsql = '''
+SET HEADING OFF;
+SELECT
+    P.PRD_ID || ';' ||
+    COALESCE(P.PRD_EMPRESA, ${config.empresaId}) || ';' ||
+    COALESCE(P.PRD_CODIGO, CAST(P.PRD_ID AS VARCHAR(20))) || ';' ||
+    P.PRD_DESCRICAO || ';' ||
+    COALESCE(P.PRD_STATUS, 'A') || ';' ||
+    COALESCE(P.PRD_PRECO_VENDA, 0.0) || ';' ||
+    COALESCE(G.PGRU_DESCRICAO, '') || ';' ||
+    COALESCE(P.PRD_REFERENCIA, '') || ';' ||
+    COALESCE(P.PRD_UN_VENDA, '')
+FROM TB_PRODUTO P
+LEFT JOIN TB_PROD_GRUPO G ON G.PGRU_ID = P.PRD_GRUPO AND (G.PGRU_EMPRESA = P.PRD_EMPRESA OR G.PGRU_EMPRESA IS NULL)
+WHERE (P.PRD_EMPRESA = ${config.empresaId} OR P.PRD_EMPRESA IS NULL)
+ORDER BY P.PRD_DESCRICAO ASC;
+''';
+
+        try {
+          final process = await Process.start(
+            isqlPath,
+            ['-u', user, '-p', password, '-q', stringConexao],
+            runInShell: false,
+          );
+
+          process.stdin.writeln(sqlIsql);
+          process.stdin.writeln('QUIT;');
+          await process.stdin.flush();
+          await process.stdin.close();
+
+          final output = await process.stdout.transform(systemEncoding.decoder).join();
+          final exitCode = await process.exitCode;
+
+          if (exitCode == 0) {
+            final List<ProdutoModel> produtos = [];
+            final linhas = const LineSplitter().convert(output);
+            for (final linha in linhas) {
+              final trim = linha.trim();
+              if (trim.isEmpty || trim.startsWith('Database:') || trim.startsWith('SQL>')) continue;
+              final partes = trim.split(';');
+              if (partes.length >= 6) {
+                final id = int.tryParse(partes[0].trim()) ?? 0;
+                final emp = int.tryParse(partes[1].trim()) ?? config.empresaId;
+                final cod = partes[2].trim();
+                final desc = partes[3].trim();
+                final st = partes[4].trim();
+                final preco = double.tryParse(partes[5].trim()) ?? 0.0;
+                final grupo = partes.length > 6 && partes[6].trim().isNotEmpty ? partes[6].trim() : null;
+                final ref = partes.length > 7 && partes[7].trim().isNotEmpty ? partes[7].trim() : null;
+                final un = partes.length > 8 && partes[8].trim().isNotEmpty ? partes[8].trim() : null;
+
+                if (id > 0 && desc.isNotEmpty) {
+                  produtos.add(ProdutoModel(
+                    id: id,
+                    empresaId: emp,
+                    codigo: cod.isEmpty ? id.toString() : cod,
+                    descricao: desc,
+                    status: st.isEmpty ? 'A' : st,
+                    precoVenda: preco,
+                    grupoDescricao: grupo,
+                    referencia: ref,
+                    unidadeVenda: un,
+                  ));
+                }
+              }
+            }
+            if (produtos.isNotEmpty) {
+              return produtos;
+            }
+          }
+        } catch (e) {
+          debugPrint('ISQL fallback: erro ao listar produtos: $e');
+        }
+      }
+    }
+
+    return [];
+  }
+
+  /// Altera o status do produto ('A' ou 'I') na TB_PRODUTO e grava a auditoria na TB_AUDITORIA e TB_AUDITORIA_ITEM
+  Future<void> alterarStatusProdutoFirebird({
+    required AppConfig config,
+    required Produto produto,
+    required bool ativar,
+    int usuarioId = 1,
+  }) async {
+    final String novoStatus = ativar ? 'A' : 'I';
+    final String statusAntigo = produto.status.trim().toUpperCase();
+    final String descSafe = produto.descricao.replaceAll("'", "''");
+
+    final sql = '''
+UPDATE TB_PRODUTO
+SET PRD_STATUS = '$novoStatus',
+    PRD_ULTIMA_ALTERACAO = CURRENT_TIMESTAMP
+WHERE PRD_EMPRESA = ${config.empresaId} AND PRD_ID = ${produto.id};
+
+INSERT INTO TB_AUDITORIA (
+    AUD_EMPRESA,
+    AUD_TABELA,
+    AUD_ID_REGISTRO,
+    AUD_SEQUENCIA,
+    AUD_TABELA_DESC,
+    AUD_ACAO,
+    AUD_DT_LANCAMENTO,
+    AUD_DT_ACAO,
+    AUD_USUARIO,
+    AUD_DESC_REGISTRO,
+    AUD_VERSAO,
+    AUD_VERSAO_SERVIDOR
+) VALUES (
+    ${config.empresaId},
+    'TB_PRODUTO',
+    '${produto.id}',
+    (SELECT COALESCE(MAX(AUD_SEQUENCIA), 0) + 1 FROM TB_AUDITORIA WHERE AUD_EMPRESA = ${config.empresaId}),
+    'PRODUTOS',
+    'A',
+    CURRENT_TIMESTAMP,
+    CURRENT_DATE,
+    $usuarioId,
+    '$descSafe',
+    'CheckMesa',
+    'CheckMesa'
+);
+
+INSERT INTO TB_AUDITORIA_ITEM (
+    AUDI_EMPRESA,
+    AUDI_TABELA,
+    AUDI_ID_REGISTRO,
+    AUDI_AUDITORIA,
+    AUDI_CAMPO,
+    AUDI_CAMPO_DESC,
+    AUDI_VALOR_ANTIGO,
+    AUDI_VALOR_NOVO
+) VALUES (
+    ${config.empresaId},
+    'TB_PRODUTO',
+    '${produto.id}',
+    (SELECT MAX(AUD_SEQUENCIA) FROM TB_AUDITORIA WHERE AUD_EMPRESA = ${config.empresaId} AND AUD_TABELA = 'TB_PRODUTO' AND AUD_ID_REGISTRO = '${produto.id}'),
+    'PRD_STATUS',
+    'Status',
+    '$statusAntigo',
+    '$novoStatus'
+);
+COMMIT;
+''';
+
+    await executarSqlDiretoNoFirebird(config: config, sql: sql);
+  }
 }
+

@@ -24,6 +24,7 @@ import '../widgets/metricas_salao_dialog.dart';
 import '../widgets/stats_summary_widget.dart';
 import '../widgets/transferir_mesa_dialog.dart';
 import 'historico_ingressos_screen.dart';
+import 'status_produtos_screen.dart';
 
 class MesaGridScreen extends StatefulWidget {
   final IngressoRepository ingressoRepository;
@@ -371,6 +372,42 @@ class _MesaGridScreenState extends State<MesaGridScreen> {
                     )
                   : null,
               actions: [
+                // Botão Status Produtos no topo
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+                  child: ElevatedButton.icon(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: config.modoEscuro
+                          ? const Color(0xFF0F172A)
+                          : Colors.white,
+                      foregroundColor: config.modoEscuro
+                          ? const Color(0xFF38BDF8)
+                          : const Color(0xFF0284C7),
+                      elevation: 0,
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 0),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                        side: BorderSide(
+                          color: config.modoEscuro
+                              ? const Color(0xFF38BDF8).withOpacity(0.5)
+                              : const Color(0xFF0284C7).withOpacity(0.4),
+                          width: 1.2,
+                        ),
+                      ),
+                    ),
+                    icon: const Icon(Icons.inventory_2_rounded, size: 16),
+                    label: const Text(
+                      'Status Produtos',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: 0.2,
+                      ),
+                    ),
+                    onPressed: () => _abrirStatusProdutos(context),
+                  ),
+                ),
+
                 // Alternar Modo Escuro
                 IconButton(
                   visualDensity: VisualDensity.compact,
@@ -946,6 +983,14 @@ class _MesaGridScreenState extends State<MesaGridScreen> {
           ingressoRepository: widget.ingressoRepository,
           empresaId: empresaId,
         ),
+      ),
+    );
+  }
+
+  void _abrirStatusProdutos(BuildContext context) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => const StatusProdutosScreen(),
       ),
     );
   }

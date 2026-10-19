@@ -12,7 +12,9 @@ import 'package:apk_check_in/domain/entities/comanda.dart';
 import 'package:apk_check_in/domain/entities/consumo_mesa_resumo.dart';
 import 'package:apk_check_in/domain/entities/mesa.dart';
 import 'package:apk_check_in/domain/entities/pedido_resumo.dart';
+import 'package:apk_check_in/domain/entities/produto.dart';
 import 'package:apk_check_in/domain/entities/status_permanencia.dart';
+import 'package:apk_check_in/data/models/produto_model.dart';
 
 void main() {
   group('Testes de Domínio e Formatação de Permanência', () {
@@ -330,6 +332,52 @@ void main() {
       expect(identical(s1, s2), isTrue);
       expect(s1.deviceId.isNotEmpty, isTrue);
       expect(s1.deviceId.startsWith('dev_'), isTrue);
+    });
+
+    test('Entidade Produto deve identificar status ativo e inativo corretamente', () {
+      const prodAtivo = Produto(
+        id: 100,
+        empresaId: 1,
+        codigo: '100',
+        descricao: 'PIZZA CALABRESA',
+        status: 'A',
+        precoVenda: 65.0,
+        grupoDescricao: 'PIZZAS',
+      );
+      expect(prodAtivo.isAtivo, isTrue);
+      expect(prodAtivo.statusDescricao, equals('Ativo'));
+
+      final prodInativado = prodAtivo.copyWith(status: 'I');
+      expect(prodInativado.isAtivo, isFalse);
+      expect(prodInativado.statusDescricao, equals('Inativo'));
+    });
+
+    test('ProdutoModel deve serializar e desserializar para SQLite e Firebird corretamente', () {
+      final mapFirebird = {
+        'PRD_ID': 200,
+        'PRD_EMPRESA': 1,
+        'PRD_CODIGO': '200',
+        'PRD_DESCRICAO': 'REFRIGERANTE COCA-COLA 2L',
+        'PRD_STATUS': 'I',
+        'PRD_PRECO_VENDA': 14.50,
+        'PGRU_DESCRICAO': 'BEBIDAS',
+        'PRD_REFERENCIA': 'COCA-2L',
+        'PRD_UN_VENDA': 'UN',
+      };
+
+      final model = ProdutoModel.fromFirebirdRow(mapFirebird);
+      expect(model.id, equals(200));
+      expect(model.descricao, equals('REFRIGERANTE COCA-COLA 2L'));
+      expect(model.isAtivo, isFalse);
+      expect(model.grupoDescricao, equals('BEBIDAS'));
+
+      final mapDb = model.toMapLocalDb();
+      expect(mapDb['PRD_ID'], equals(200));
+      expect(mapDb['PRD_STATUS'], equals('I'));
+
+      final modelLocal = ProdutoModel.fromLocalDb(mapDb);
+      expect(modelLocal.descricao, equals(model.descricao));
+      expect(modelLocal.isAtivo, equals(model.isAtivo));
     });
   });
 }
