@@ -33,6 +33,9 @@ migrate_working_dir/
 /build/
 /coverage/
 /build_apk/
+/instalador/**
+!/instalador/
+!/instalador/LEIA-ME.txt
 *.apk
 *.zip
 *.exe

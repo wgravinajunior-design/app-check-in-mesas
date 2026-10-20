@@ -1,0 +1,29 @@
+﻿========================================================================
+CHECKMESA - PACOTE DE INSTALACAO MULTIPLATAFORMA (v1.0.20)
+========================================================================
+
+Este diretorio contem os binarios oficiais prontos para uso e distribuicao.
+
+1. ANDROID (Celulares e Tablets)
+------------------------------------------------------------------------
+- Arquivos:
+  * CheckMesa-v1.0.20.apk
+  * CheckMesa.apk (copia com nome fixo)
+  * Pasta 'Android/' com as copias adicionais.
+- Como instalar:
+  Envie o arquivo .apk para o smartphone ou tablet via WhatsApp, Google Drive
+  ou cabo USB, abra o arquivo no aparelho e confirme a instalacao.
+
+2. WINDOWS DESKTOP (Computadores e Terminais)
+------------------------------------------------------------------------
+- Pasta 'Windows/':
+  Contem o executavel 'CheckMesa.exe' acompanhado de TODAS as DLLs necessarias
+  (Flutter Engine, driver nativo Firebird fbclient.dll, SQLite3, runtimes C++
+  MSVCP140/VCRUNTIME140, plugins de som e navegacao, pasta data e plugins).
+  * Como usar: Basta abrir a pasta 'Windows/' e dar dois cliques em 'CheckMesa.exe'.
+  * Para enviar para outro PC: Envie o arquivo compactado 'CheckMesa-v1.0.20-Windows.zip'
+    ou 'CheckMesa-Windows.zip', descompacte em qualquer pasta e execute 'CheckMesa.exe'.
+
+========================================================================
+Atualizado em: 20/10/2026 08:35:43
+========================================================================
